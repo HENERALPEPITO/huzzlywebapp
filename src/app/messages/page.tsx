@@ -8,6 +8,13 @@ import ChatMessages from '@/components/ChatMessages';
 import MessageInput from '@/components/MessageInput';
 import { Contact } from '@/lib/contactsService';
 import { supabase } from '@/lib/supabaseClient';
+import {
+  fetchMessages,
+  sendMessage as sendMessageApi,
+  subscribeToMessages,
+  markMessagesAsRead,
+  MessageRecord,
+} from '@/services/messages.service';
 
 interface Message {
   id: string;
@@ -16,7 +23,7 @@ interface Message {
   timestamp: Date;
   senderName?: string;
   senderInitial?: string;
-  sender_id?: string; // Track sender_id based on auth
+  sender_id?: string;
 }
 
 export default function MessagesPage() {
@@ -27,26 +34,79 @@ export default function MessagesPage() {
   const [isSending, setIsSending] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
+  const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
 
   // Check auth and fetch current user
   useEffect(() => {
+    let isMounted = true;
+    
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      console.log('[MessagesPage] Starting auth check...');
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log('[MessagesPage] Session check complete:', !!session);
 
-      if (!session) {
-        router.push('/');
-        return;
-      }
+        if (!isMounted) return;
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setCurrentUserId(user.id);
+        if (!session) {
+          console.log('[MessagesPage] No session found, redirecting to home');
+          router.push('/');
+          return;
+        }
+
+        const { data: { user } } = await supabase.auth.getUser();
+        console.log('[MessagesPage] User check complete:', !!user);
+        if (isMounted && user) {
+          setCurrentUserId(user.id);
+        }
+      } catch (error) {
+        console.error('[MessagesPage] Auth check error:', error);
+      } finally {
+        if (isMounted) {
+          console.log('[MessagesPage] Auth check finished');
+          setIsAuthChecking(false);
+        }
       }
-      setIsAuthChecking(false);
     };
 
+    // Set a timeout to prevent infinite loading
+    const timeout = setTimeout(() => {
+      if (isMounted) {
+        console.warn('[MessagesPage] Auth check timeout - proceeding anyway');
+        setIsAuthChecking(false);
+      }
+    }, 5000);
+
     checkAuth();
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timeout);
+    };
   }, [router]);
+
+  // Handle URL parameters to auto-select contact and optional shift
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const searchParams = new URLSearchParams(window.location.search);
+    const receiverId = searchParams.get('receiver_id');
+    const receiverName = searchParams.get('receiver_name');
+    const shiftId = searchParams.get('shift_id');
+    
+    if (receiverId && receiverName) {
+      const contact: Contact = {
+        worker_id: receiverId,
+        user_id: receiverId,
+        name: decodeURIComponent(receiverName),
+      };
+      setSelectedContact(contact);
+    }
+
+    if (shiftId) {
+      setSelectedShiftId(shiftId);
+    }
+  }, []);
 
   // Handle Logout
   const handleLogout = async () => {
@@ -56,81 +116,107 @@ export default function MessagesPage() {
 
   // Load messages when contact is selected
   useEffect(() => {
-    if (!selectedContact) return;
+    if (!selectedContact || !currentUserId) return;
 
-    setIsLoading(true);
-    // Simulate loading messages from the real DB logic
-    setTimeout(() => {
-      setMessages([
-        {
-          id: '1',
-          content: 'Hey! How are you doing?',
-          isSender: false,
-          timestamp: new Date(Date.now() - 300000),
-          senderName: selectedContact.name,
-          senderInitial: selectedContact.name.charAt(0).toUpperCase(),
-        },
-        {
-          id: '2',
-          content: 'I\'m doing great! How about you?',
-          isSender: true,
-          timestamp: new Date(Date.now() - 240000),
-          sender_id: currentUserId || undefined,
-        },
-        {
-          id: '3',
-          content: 'Doing well! Want to grab coffee later?',
-          isSender: false,
-          timestamp: new Date(Date.now() - 180000),
-          senderName: selectedContact.name,
-          senderInitial: selectedContact.name.charAt(0).toUpperCase(),
-        },
-        {
-          id: '4',
-          content: 'Sounds perfect! What time works for you?',
-          isSender: true,
-          timestamp: new Date(Date.now() - 120000),
-          sender_id: currentUserId || undefined,
-        },
-      ]);
-      setIsLoading(false);
-    }, 500);
-  }, [selectedContact, currentUserId]);
+    const load = async () => {
+      try {
+        setIsLoading(true);
+        const data = await fetchMessages(currentUserId, selectedContact.user_id, selectedShiftId || undefined);
+        const mapped: Message[] = data.map((m: MessageRecord) => ({
+          id: m.id,
+          content: m.content,
+          isSender: m.sender_id === currentUserId,
+          timestamp: new Date(m.sent_at),
+          senderName: m.sender_id === currentUserId ? 'You' : selectedContact.name,
+          senderInitial: m.sender_id === currentUserId ? undefined : selectedContact.name.charAt(0).toUpperCase(),
+          sender_id: m.sender_id,
+        }));
+        setMessages(mapped);
+
+        await markMessagesAsRead(currentUserId, selectedContact.user_id, selectedShiftId || undefined);
+      } catch (error) {
+        console.error('[MessagesPage] Failed to load messages:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    load();
+  }, [selectedContact, currentUserId, selectedShiftId]);
+
+  // Realtime subscription for new messages in the active conversation
+  useEffect(() => {
+    if (!selectedContact || !currentUserId) return;
+
+    const unsubscribe = subscribeToMessages({
+      currentUserId,
+      otherUserId: selectedContact.user_id,
+      shiftId: selectedShiftId || undefined,
+      onNewMessage: (m) => {
+        setMessages((prev) => {
+          // Avoid adding duplicates if this message is already in state
+          if (prev.some((msg) => msg.id === m.id)) {
+            return prev;
+          }
+
+          return [
+            ...prev,
+            {
+              id: m.id,
+              content: m.content,
+              isSender: m.sender_id === currentUserId,
+              timestamp: new Date(m.sent_at),
+              senderName: m.sender_id === currentUserId ? 'You' : selectedContact.name,
+              senderInitial: m.sender_id === currentUserId ? undefined : selectedContact.name.charAt(0).toUpperCase(),
+              sender_id: m.sender_id,
+            },
+          ];
+        });
+      },
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [selectedContact, currentUserId, selectedShiftId]);
 
   const handleSendMessage = async (messageText: string) => {
     if (!selectedContact || !currentUserId) return;
 
     setIsSending(true);
 
-    // Simulate sending message
-    setTimeout(() => {
-      // In real implementation:
-      // await supabase.from('messages').insert({ sender_id: currentUserId, content: messageText, ... })
-
-      const newMessage: Message = {
-        id: Date.now().toString(),
+    try {
+      const created = await sendMessageApi({
+        senderId: currentUserId,
+        receiverId: selectedContact.user_id,
         content: messageText,
-        isSender: true,
-        timestamp: new Date(),
-        sender_id: currentUserId,
-      };
+        shiftId: selectedShiftId || undefined,
+      });
 
-      setMessages((prev) => [...prev, newMessage]);
+      if (created) {
+        setMessages((prev) => {
+          // Avoid duplicate if realtime already added this message
+          if (prev.some((msg) => msg.id === created.id)) {
+            return prev;
+          }
+
+          return [
+            ...prev,
+            {
+              id: created.id,
+              content: created.content,
+              isSender: true,
+              timestamp: new Date(created.sent_at),
+              sender_id: created.sender_id,
+            },
+          ];
+        });
+      }
+    } catch (error) {
+      console.error('[MessagesPage] Failed to send message:', error);
+    } finally {
       setIsSending(false);
-
-      // Simulate a reply after 1 second
-      setTimeout(() => {
-        const reply: Message = {
-          id: (Date.now() + 1).toString(),
-          content: 'Thanks for your message!',
-          isSender: false,
-          timestamp: new Date(),
-          senderName: selectedContact.name,
-          senderInitial: selectedContact.name.charAt(0).toUpperCase(),
-        };
-        setMessages((prev) => [...prev, reply]);
-      }, 1000);
-    }, 300);
+    }
   };
 
   if (isAuthChecking) {

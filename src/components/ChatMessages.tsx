@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useMemo, useRef } from 'react';
 import MessageBubble from './MessageBubble';
@@ -25,7 +25,14 @@ export default function ChatMessages({ messages, isLoading = false }: ChatMessag
   }, [messages]);
 
   const normalized = useMemo(() => {
-    return messages.map((m) => ({
+    // Ensure unique messages by id in case upstream state accidentally contains duplicates
+    const byId = new Map<string, Message>();
+
+    for (const m of messages) {
+      byId.set(m.id, m);
+    }
+
+    return Array.from(byId.values()).map((m) => ({
       ...m,
       timestamp: m.timestamp instanceof Date ? m.timestamp : new Date(m.timestamp),
     }));

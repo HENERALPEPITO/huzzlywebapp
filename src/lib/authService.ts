@@ -77,7 +77,8 @@ export async function signUpClient({
         email: email,
         first_name: first_name,
         last_name: last_name,
-        role: 'Client' // Updated to match Enum definition
+        // Use capitalized "Client" to match your user_role enum
+        role: 'Client',
       });
 
     if (userError) throw userError;
@@ -96,7 +97,10 @@ export async function signUpClient({
       .from('clients')
       .insert(clientPayload);
 
-    if (clientError) throw clientError;
+    if (clientError) {
+      console.error('Client insert error:', clientError.message || clientError);
+      throw clientError;
+    }
 
     // Optional: Fetch the created profile data if needed
     const { data: finalUser } = await supabase
