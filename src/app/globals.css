@@ -1,10 +1,35 @@
-﻿@tailwind base;
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+html,
+body {
+  height: 100% !important;
+  overflow: hidden !important;
+  margin: 0;
+  padding: 0;
+}
+
+/* If using #__next (Pages Router) or a root div wrapper: */
+#__next {
+  height: 100%;
+  overflow: hidden;
+}
 
 :root {
   --background: #ffffff;
   --foreground: #111827;
+  /* Huzly brand colors from Figma */
+  --huzly-800: #1E3559;
+  --huzly-500: #4473C0;
+  --neutral-700: #334155;
+  --neutral-600: #475569;
+  --neutral-500: #64748B;
+  --neutral-400: #94A3B8;
+  --neutral-200: #E2E8F0;
+  --neutral-100: #F1F5F9;
+  --teal-400: #2DD4BF;
+  --teal-500: #14B8A6;
 }
 
 @theme inline {
@@ -21,8 +46,113 @@
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ── Custom scrollbar styling ── */
+/* WebKit (Chrome/Edge/Safari) */
+::-webkit-scrollbar {
+  width: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: #e2e8f0; /* light gray so track is clearly visible */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #64748b; /* darker thumb for contrast */
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #64748b #e2e8f0;
+}
+
+/* ── Typing indicator – Messenger style ── */
+@keyframes typingFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.typing-indicator-wrapper {
+  animation: typingFadeIn 0.2s ease-out;
+}
+
+/* Grey bubble, matching Facebook Messenger */
+.typing-bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 14px;
+  border-radius: 18px 18px 18px 4px;
+  background: #e9ebee;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  min-width: 52px;
+}
+
+.typing-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #90949c;
+  animation: typingBounce 1.2s ease-in-out infinite;
+}
+
+@keyframes typingBounce {
+  0%, 57%, 100% { transform: translateY(0);    opacity: 0.5; }
+  28%            { transform: translateY(-6px); opacity: 1;   }
+}
+
+/* ── Scroll-to-bottom floating button ── */
+.scroll-to-bottom-btn {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  background: #fff;
+  color: #4473c0;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+  z-index: 10;
+  animation: scrollBtnAppear 0.2s ease-out;
+  transition: background 0.15s, transform 0.15s;
+}
+
+.scroll-to-bottom-btn:hover {
+  background: #f0f4ff;
+  transform: translateX(-50%) scale(1.08);
+}
+
+@keyframes scrollBtnAppear {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* Unread-count badge on the button */
+.scroll-btn-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: #4473c0;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  box-sizing: border-box;
 }

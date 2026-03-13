@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 interface MessageBubbleProps {
   content: string;
@@ -25,41 +25,41 @@ export default function MessageBubble({
     hour12: true,
   });
 
-  const showAvatar = !isSender && !isGroupedWithNext;
   const showTimestamp = !isGroupedWithNext;
 
   if (isSender) {
     return (
-      <div className={isGroupedWithPrev ? 'mt-1 flex justify-end' : 'mt-3 flex justify-end'}>
-        <div className="flex flex-col items-end gap-1 max-w-full">
+      <div className="flex justify-end w-full px-4 mb-1">
+        <div className="flex flex-col items-end" style={{ maxWidth: '65%' }}>
           <div
-            className="bg-[#0084FF] text-white rounded-2xl px-4 py-2 max-w-[70%] shadow-sm transition-transform duration-150 hover:scale-[1.01]"
+            className="rounded-2xl px-4 py-2 text-sm text-white bg-blue-600"
+            style={{ wordBreak: 'break-word', overflowWrap: 'anywhere', width: '100%' }}
           >
-            <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">{content}</p>
+            {content}
           </div>
-          {showTimestamp ? <span className="text-xs text-[#8A8D91]">{timeString}</span> : null}
+          {showTimestamp && (
+            <span className="text-xs text-gray-500 mt-1">{timeString}</span>
+          )}
         </div>
       </div>
     );
   }
 
   return (
-    <div className={isGroupedWithPrev ? 'mt-1 flex items-end gap-2' : 'mt-3 flex items-end gap-2'}>
-      <div className="w-8 flex-shrink-0">
-        {showAvatar ? (
-          <div className="w-8 h-8 rounded-full bg-[#F0F2F5] flex items-center justify-center text-xs font-semibold text-[#111827]">
-            {senderInitial || (senderName?.charAt(0) || 'U').toUpperCase()}
-          </div>
-        ) : null}
+    <div className="flex justify-start w-full px-4 mb-1">
+      <div className="w-8 h-8 rounded-full bg-neutral-200 flex items-center justify-center text-xs font-semibold text-gray-700 flex-shrink-0 mr-2">
+        {senderInitial || (senderName?.charAt(0) || 'U').toUpperCase()}
       </div>
-
-      <div className="flex flex-col items-start gap-1 max-w-full">
+      <div className="flex flex-col items-start" style={{ maxWidth: '65%' }}>
         <div
-          className="bg-[#F0F2F5] text-[#111827] rounded-2xl px-4 py-2 max-w-[70%] shadow-sm transition-transform duration-150 hover:scale-[1.01]"
+          className="rounded-2xl px-4 py-2 text-sm text-gray-900 bg-[#F0F2F5]"
+          style={{ wordBreak: 'break-word', overflowWrap: 'anywhere', width: '100%' }}
         >
-          <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">{content}</p>
+          {content}
         </div>
-        {showTimestamp ? <span className="text-xs text-[#8A8D91]">{timeString}</span> : null}
+        {showTimestamp && (
+          <span className="text-xs text-gray-500 mt-1">{timeString}</span>
+        )}
       </div>
     </div>
   );

@@ -2,12 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import ContactList from '@/components/ContactList';
 import ChatHeader from '@/components/ChatHeader';
 import ChatMessages from '@/components/ChatMessages';
-import MessageInput from '@/components/MessageInput';
+import MessageInputWithFAQ from '@/components/MessageInputWithFAQ';
+import EmptyConversation from '@/components/EmptyConversation';
+import LeftSidebar from '@/components/LeftSidebar';
+import ConversationListPanel from '@/components/ConversationListPanel';
+import ContactDetails from '@/components/ContactDetails';
 import { Contact } from '@/lib/contactsService';
 import { supabase } from '@/lib/supabaseClient';
+import { useAutoReply } from '@/hooks/useAutoReply';
 import {
   fetchMessages,
   sendMessage as sendMessageApi,
@@ -35,11 +39,17 @@ export default function MessagesPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
+  const [autoReplyEnabled, setAutoReplyEnabled] = useState(true);
+
+  const { isGenerating: isAutoReplyGenerating, generateAndSendAutoReply } = useAutoReply({
+    enabled: autoReplyEnabled,
+    useFAQ: true,
+  });
 
   // Check auth and fetch current user
   useEffect(() => {
     let isMounted = true;
-    
+
     const checkAuth = async () => {
       console.log('[MessagesPage] Starting auth check...');
       try {
@@ -88,12 +98,12 @@ export default function MessagesPage() {
   // Handle URL parameters to auto-select contact and optional shift
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    
+
     const searchParams = new URLSearchParams(window.location.search);
     const receiverId = searchParams.get('receiver_id');
     const receiverName = searchParams.get('receiver_name');
     const shiftId = searchParams.get('shift_id');
-    
+
     if (receiverId && receiverName) {
       const contact: Contact = {
         worker_id: receiverId,
@@ -172,13 +182,19 @@ export default function MessagesPage() {
             },
           ];
         });
+
+        // Auto-reply if message is from the other user
+        if (m.sender_id !== currentUserId && autoReplyEnabled) {
+          // Trigger auto-reply without conversation history (to avoid format issues)
+          generateAndSendAutoReply(m.content, m.sender_id, currentUserId);
+        }
       },
     });
 
     return () => {
       unsubscribe();
     };
-  }, [selectedContact, currentUserId, selectedShiftId]);
+  }, [selectedContact, currentUserId, selectedShiftId, autoReplyEnabled, generateAndSendAutoReply]);
 
   const handleSendMessage = async (messageText: string) => {
     if (!selectedContact || !currentUserId) return;
@@ -228,46 +244,119 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="h-screen w-full bg-white flex flex-col">
-      {/* Top Application Bar to allow Logout from main frame */}
-      <div className="h-14 border-b border-gray-200 bg-white flex items-center justify-between px-4">
-        <h1 className="text-xl font-bold text-blue-600">Messaging App</h1>
-        <button
-          onClick={handleLogout}
-          className="text-sm text-gray-700 hover:text-red-500 transition-colors font-medium border rounded px-3 py-1 border-gray-300"
-        >
-          Logout
-        </button>
+    <div style={{ display: 'flex', height: '100dvh', overflow: 'hidden', background: '#F6F8FB' }}>
+      {/* Sidebar */}
+      <div style={{ width: '240px', flexShrink: 0, height: '100%', overflowY: 'auto' }}>
+        <LeftSidebar />
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
-        {/* Contact List Sidebar - 50% width */}
-        <div className="w-1/2 border-r border-gray-200 overflow-y-auto bg-gray-50">
-          <ContactList
-            onSelectContact={setSelectedContact}
-            selectedContactId={selectedContact?.user_id}
-          />
+      {/* Conversation list */}
+      <div style={{ width: '320px', flexShrink: 0, height: '100%', overflowY: 'auto' }}>
+        <ConversationListPanel
+          onSelectContact={setSelectedContact}
+          selectedContactId={selectedContact?.user_id}
+        />
+      </div>
+
+      {/* Middle chat column — CRITICAL */}
+      <div
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          minHeight: 0,
+          overflow: 'hidden',
+          background: 'white',
+        }}
+      >
+        {/* fixed height top bar */}
+        <div
+          style={{
+            flexShrink: 0,
+            height: 56,
+            borderBottom: '1px solid #E5E7EB',
+            background: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingLeft: 16,
+            paddingRight: 16,
+          }}
+        >
+          <h1 className="text-xl font-bold text-blue-600">Messaging App</h1>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <label htmlFor="autoReply" className="text-sm font-medium text-gray-700">
+                Auto-Reply:
+              </label>
+              <button
+                id="autoReply"
+                onClick={() => setAutoReplyEnabled(!autoReplyEnabled)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  autoReplyEnabled ? 'bg-blue-600' : 'bg-gray-300'
+                }`}
+                role="switch"
+                aria-checked={autoReplyEnabled}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    autoReplyEnabled ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+              {isAutoReplyGenerating && (
+                <span className="text-xs text-purple-600 font-medium">Generating...</span>
+              )}
+            </div>
+            <button
+              onClick={handleLogout}
+              className="text-sm text-gray-700 hover:text-red-500 transition-colors font-medium border rounded px-3 py-1 border-gray-300"
+            >
+              Logout
+            </button>
+          </div>
         </div>
 
-        {/* Chat Area - 50% width */}
-        <div className="w-1/2 flex flex-col bg-white overflow-hidden">
-          {selectedContact ? (
-            <>
+        {selectedContact ? (
+          <>
+            <div style={{ flexShrink: 0 }}>
               <ChatHeader userName={selectedContact.name} isOnline={true} />
-              <div className="flex-1 overflow-y-auto">
-                <ChatMessages messages={messages} isLoading={isLoading} />
-              </div>
-              <MessageInput onSend={handleSendMessage} isLoading={isSending} />
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center bg-gray-50">
-              <div className="text-center p-6 border-2 border-dashed border-gray-300 rounded-xl">
-                <p className="text-gray-600 text-lg font-medium mb-2">Select a contact to start messaging</p>
-                <p className="text-gray-400 text-sm">Choose a contact from the list to view or start a conversation.</p>
-              </div>
             </div>
-          )}
-        </div>
+
+            {/* This wrapper around ChatMessages MUST have both: min-h-0 + relative + overflow-hidden */}
+            <div style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden', background: 'white' }}>
+              <ChatMessages messages={messages} isLoading={isLoading} />
+            </div>
+
+            {/* Message input fixed at bottom */}
+            <div style={{ flexShrink: 0, background: 'white', borderTop: '1px solid var(--neutral-200)' }}>
+              <MessageInputWithFAQ
+                onSend={handleSendMessage}
+                isLoading={isSending}
+                showFAQIndicator={true}
+              />
+            </div>
+          </>
+        ) : (
+          <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+            <EmptyConversation />
+          </div>
+        )}
+      </div>
+
+      {/* Right profile panel */}
+      <div
+        style={{
+          width: '280px',
+          flexShrink: 0,
+          height: '100%',
+          overflowY: 'auto',
+          background: 'white',
+          borderLeft: '1px solid #E5E7EB',
+        }}
+      >
+        <ContactDetails contact={selectedContact} />
       </div>
     </div>
   );
