@@ -15,11 +15,7 @@ The Grok integration provides:
 
 ### Environment Variables
 
-Your `.env.local` file already contains the required Grok API key:
 
-```env
-XAI_API_KEY=xai-qS7zZQxepkKUMeUucIyexhPyrxdDvJWx9qQCLgpFkweucxNBn1wzFEI8Ci6Y1cuzuPdC54Yizx656lLL
-```
 
 If you need to update or change your API key:
 1. Generate a new API key from [x.ai](https://api.x.ai)
