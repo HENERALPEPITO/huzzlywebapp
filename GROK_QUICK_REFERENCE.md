@@ -73,12 +73,6 @@ const reply = await grokService.generateAutoReply('message');
 ✅ **Error handling** - Comprehensive error management  
 ✅ **Customizable context** - Define AI behavior  
 
-## Environment Setup
-
-Your `.env.local` already has:
-```env
-XAI_API_KEY=xai-qS7zZQxepkKUMeUucIyexhPyrxdDvJWx9qQCLgpFkweucxNBn1wzFEI8Ci6Y1cuzuPdC54Yizx656lLL
-```
 
 ## Usage Examples
 
