@@ -30,10 +30,18 @@ export default function MessageBubble({
   if (isSender) {
     return (
       <div className="flex justify-end w-full px-4 mb-1">
-        <div className="flex flex-col items-end" style={{ maxWidth: '65%' }}>
+        <div className="flex flex-col items-end" style={{ maxWidth: '65%', minWidth: 0 }}>
           <div
-            className="rounded-2xl px-4 py-2 text-sm text-white bg-blue-600"
-            style={{ wordBreak: 'break-word', overflowWrap: 'anywhere', width: '100%' }}
+            style={{
+              backgroundColor: '#0084ff',
+              color: 'white',
+              borderRadius: '18px',
+              padding: '8px 14px',
+              fontSize: '14px',
+              wordBreak: 'break-word',
+              overflowWrap: 'anywhere',
+              width: '100%',
+            }}
           >
             {content}
           </div>
@@ -50,10 +58,18 @@ export default function MessageBubble({
       <div className="w-8 h-8 rounded-full bg-neutral-200 flex items-center justify-center text-xs font-semibold text-gray-700 flex-shrink-0 mr-2">
         {senderInitial || (senderName?.charAt(0) || 'U').toUpperCase()}
       </div>
-      <div className="flex flex-col items-start" style={{ maxWidth: '65%' }}>
+      <div className="flex flex-col items-start" style={{ maxWidth: '65%', minWidth: 0 }}>
         <div
-          className="rounded-2xl px-4 py-2 text-sm text-gray-900 bg-[#F0F2F5]"
-          style={{ wordBreak: 'break-word', overflowWrap: 'anywhere', width: '100%' }}
+          style={{
+            backgroundColor: '#F0F2F5',
+            color: '#1c1e21',
+            borderRadius: '18px',
+            padding: '8px 14px',
+            fontSize: '14px',
+            wordBreak: 'break-word',
+            overflowWrap: 'anywhere',
+            width: '100%',
+          }}
         >
           {content}
         </div>

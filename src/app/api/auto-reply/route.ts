@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
         .insert({
           sender_id: receiverId,
           receiver_id: senderId,
-          content: `[Auto-Reply] ${autoReply}`,
+          content: `AI response: ${autoReply}`,
           shift_id: null,
         })
         .select('*')

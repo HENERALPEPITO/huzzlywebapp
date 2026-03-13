@@ -244,119 +244,121 @@ export default function MessagesPage() {
   }
 
   return (
-    <div style={{ display: 'flex', height: '100dvh', overflow: 'hidden', background: '#F6F8FB' }}>
-      {/* Sidebar */}
-      <div style={{ width: '240px', flexShrink: 0, height: '100%', overflowY: 'auto' }}>
-        <LeftSidebar />
-      </div>
-
-      {/* Conversation list */}
-      <div style={{ width: '320px', flexShrink: 0, height: '100%', overflowY: 'auto' }}>
-        <ConversationListPanel
-          onSelectContact={setSelectedContact}
-          selectedContactId={selectedContact?.user_id}
-        />
-      </div>
-
-      {/* Middle chat column — CRITICAL */}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden', width: '100%' }}>
+      {/* Top navbar — fixed height */}
       <div
         style={{
-          flex: 1,
+          flexShrink: 0,
+          height: '56px',
+          borderBottom: '1px solid #e0e0e0',
           display: 'flex',
-          flexDirection: 'column',
-          height: '100%',
-          minHeight: 0,
-          overflow: 'hidden',
+          alignItems: 'center',
+          padding: '0 16px',
           background: 'white',
+          width: '100%',
+          boxSizing: 'border-box',
         }}
       >
-        {/* fixed height top bar */}
+        <h1 style={{ fontSize: 18, fontWeight: 700, color: '#2563EB', margin: 0 }}>Messaging App</h1>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Auto-Reply</span>
+            <button
+              id="autoReply"
+              onClick={() => setAutoReplyEnabled(!autoReplyEnabled)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                autoReplyEnabled ? 'bg-blue-600' : 'bg-gray-300'
+              }`}
+              role="switch"
+              aria-checked={autoReplyEnabled}
+              aria-label="Toggle auto reply"
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  autoReplyEnabled ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+            {isAutoReplyGenerating && (
+              <span style={{ fontSize: 12, color: '#7C3AED', fontWeight: 600 }}>Generating...</span>
+            )}
+          </div>
+          <button
+            onClick={handleLogout}
+            style={{
+              fontSize: 13,
+              color: '#374151',
+              fontWeight: 600,
+              border: '1px solid #D1D5DB',
+              borderRadius: 6,
+              padding: '6px 10px',
+              background: 'white',
+              cursor: 'pointer',
+            }}
+          >
+            Logout
+          </button>
+        </div>
+      </div>
+
+      {/* Column layout below navbar */}
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', overflow: 'hidden', width: '100%' }}>
+        {/* Left icon nav — narrow */}
+        <div style={{ width: '60px', flexShrink: 0, height: '100%', overflow: 'hidden', background: '#F6F8FB' }}>
+          <LeftSidebar />
+        </div>
+
+        {/* Sidebar contact list */}
+        <div style={{ width: '260px', flexShrink: 0, height: '100%', overflowY: 'auto', background: 'white' }}>
+          <ConversationListPanel
+            onSelectContact={setSelectedContact}
+            selectedContactId={selectedContact?.user_id}
+          />
+        </div>
+
+        {/* Center chat — takes remaining space */}
         <div
           style={{
-            flexShrink: 0,
-            height: 56,
-            borderBottom: '1px solid #E5E7EB',
-            background: 'white',
+            flex: 1,
+            minWidth: 0,
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingLeft: 16,
-            paddingRight: 16,
+            flexDirection: 'column',
+            height: '100%',
+            overflow: 'hidden',
+            background: 'white',
           }}
         >
-          <h1 className="text-xl font-bold text-blue-600">Messaging App</h1>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <label htmlFor="autoReply" className="text-sm font-medium text-gray-700">
-                Auto-Reply:
-              </label>
-              <button
-                id="autoReply"
-                onClick={() => setAutoReplyEnabled(!autoReplyEnabled)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  autoReplyEnabled ? 'bg-blue-600' : 'bg-gray-300'
-                }`}
-                role="switch"
-                aria-checked={autoReplyEnabled}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    autoReplyEnabled ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-              {isAutoReplyGenerating && (
-                <span className="text-xs text-purple-600 font-medium">Generating...</span>
-              )}
-            </div>
-            <button
-              onClick={handleLogout}
-              className="text-sm text-gray-700 hover:text-red-500 transition-colors font-medium border rounded px-3 py-1 border-gray-300"
-            >
-              Logout
-            </button>
+          <div style={{ flexShrink: 0 }}>
+            {selectedContact ? (
+              <ChatHeader userName={selectedContact.name} isOnline={true} />
+            ) : (
+              <div style={{ padding: '12px 16px', borderBottom: '1px solid #E5E7EB', color: '#6B7280', fontSize: 13 }}>
+                Select a conversation
+              </div>
+            )}
+          </div>
+
+          <div style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
+            {selectedContact ? (
+              <ChatMessages messages={messages} isLoading={isLoading} />
+            ) : (
+              <EmptyConversation />
+            )}
+          </div>
+
+          <div style={{ flexShrink: 0 }}>
+            {selectedContact && (
+              <div style={{ background: 'white', borderTop: '1px solid var(--neutral-200)' }}>
+                <MessageInputWithFAQ onSend={handleSendMessage} isLoading={isSending} showFAQIndicator={true} />
+              </div>
+            )}
           </div>
         </div>
 
-        {selectedContact ? (
-          <>
-            <div style={{ flexShrink: 0 }}>
-              <ChatHeader userName={selectedContact.name} isOnline={true} />
-            </div>
-
-            {/* This wrapper around ChatMessages MUST have both: min-h-0 + relative + overflow-hidden */}
-            <div style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden', background: 'white' }}>
-              <ChatMessages messages={messages} isLoading={isLoading} />
-            </div>
-
-            {/* Message input fixed at bottom */}
-            <div style={{ flexShrink: 0, background: 'white', borderTop: '1px solid var(--neutral-200)' }}>
-              <MessageInputWithFAQ
-                onSend={handleSendMessage}
-                isLoading={isSending}
-                showFAQIndicator={true}
-              />
-            </div>
-          </>
-        ) : (
-          <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-            <EmptyConversation />
-          </div>
-        )}
-      </div>
-
-      {/* Right profile panel */}
-      <div
-        style={{
-          width: '280px',
-          flexShrink: 0,
-          height: '100%',
-          overflowY: 'auto',
-          background: 'white',
-          borderLeft: '1px solid #E5E7EB',
-        }}
-      >
-        <ContactDetails contact={selectedContact} />
+        {/* Right profile panel */}
+        <div style={{ width: '260px', flexShrink: 0, height: '100%', overflowY: 'auto', background: 'white', borderLeft: '1px solid #E5E7EB' }}>
+          <ContactDetails contact={selectedContact} />
+        </div>
       </div>
     </div>
   );
