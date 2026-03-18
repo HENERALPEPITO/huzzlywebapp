@@ -23,11 +23,11 @@ export default function LeftSidebar({ onLogout }: LeftSidebarProps) {
       className="flex flex-col items-center py-5 h-full"
       style={{
         width: '64px',
-        background: 'linear-gradient(180deg, #1E3A5F 0%, #162D4A 100%)',
+        background: 'linear-gradient(180deg, #122036 0%, #2A4A7C 100%)',
       }}
     >
-      <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center mb-4">
-        <span className="text-white font-bold text-xl">H</span>
+      <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-4 overflow-hidden">
+        <img src="/images/logo.png" alt="Huzzly" className="w-10 h-10 object-contain" />
       </div>
 
       <button
