@@ -13,26 +13,10 @@ const avatarColors = [
   '#E8E1D1', '#D1D1E8', '#E8D1D1', '#C9E0D4', '#E0D4C9',
 ];
 
-function getAvatarColor(id: string, offset = 0): string {
+function getAvatarColor(id: string): string {
   const sum = id.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
-  return avatarColors[(sum + offset) % avatarColors.length];
+  return avatarColors[sum % avatarColors.length];
 }
-
-const groupNames = [
-  'Good morning team!',
-  'Task update',
-  'System notice',
-  'End-of-day reminder',
-  'Heads up',
-];
-
-const groupPreviews = [
-  'Please be on time and ready for today\'s...',
-  'Orders for Zone B are a priority today...',
-  'The app may be slow this afternoon due to maintenance...',
-  'Submit your reports before clocking out...',
-  'Safety inspection at 5:00 PM. Make sure work areas are clean.',
-];
 
 export default function ContactList({ onSelectContact, selectedContactId }: ContactListProps) {
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -60,8 +44,8 @@ export default function ContactList({ onSelectContact, selectedContactId }: Cont
   if (isLoading) {
     return (
       <div className="px-2 space-y-2">
-        {[...Array(5)].map((_, i) => (
-          <div key={i} className="h-16 bg-gray-50 rounded-xl animate-pulse" />
+        {[...Array(6)].map((_, i) => (
+          <div key={i} className="h-14 bg-gray-50 rounded-xl animate-pulse" />
         ))}
       </div>
     );
@@ -78,13 +62,11 @@ export default function ContactList({ onSelectContact, selectedContactId }: Cont
 
   return (
     <div className="space-y-1">
-      {contacts.map((contact, idx) => {
+      {contacts.map((contact) => {
         const sum = contact.user_id.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
         const unread = sum % 4;
-        const groupName = groupNames[idx % groupNames.length];
-        const preview = groupPreviews[idx % groupPreviews.length];
-        const avatarCount = 2 + (idx % 3);
         const isSelected = selectedContactId === contact.user_id;
+        const initial = contact.name.charAt(0).toUpperCase();
 
         return (
           <button
@@ -96,19 +78,16 @@ export default function ContactList({ onSelectContact, selectedContactId }: Cont
                 : 'hover:bg-gray-50'
             }`}
           >
-            <div className="flex -space-x-2 flex-shrink-0">
-              {Array.from({ length: avatarCount }).map((_, i) => (
-                <div
-                  key={i}
-                  className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-[10px] font-semibold text-gray-600"
-                  style={{ backgroundColor: getAvatarColor(contact.user_id, i), zIndex: avatarCount - i }}
-                />
-              ))}
+            <div
+              className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-semibold text-gray-600"
+              style={{ backgroundColor: getAvatarColor(contact.user_id) }}
+            >
+              {initial}
             </div>
 
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-800 truncate">{groupName}</p>
-              <p className="text-xs text-gray-400 truncate">{preview}</p>
+              <p className="text-sm font-semibold text-gray-800 truncate">{contact.name}</p>
+              <p className="text-xs text-gray-400 truncate">Application for this role...</p>
             </div>
 
             {unread > 0 && (

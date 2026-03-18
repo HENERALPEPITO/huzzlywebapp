@@ -7,24 +7,19 @@ interface ChatHeaderProps {
   isOnline?: boolean;
 }
 
-const memberColors = ['#E8D5B7', '#D4E8D1', '#D1D8E8'];
-
 export default function ChatHeader({ userName }: ChatHeaderProps) {
+  const initial = userName.charAt(0).toUpperCase();
+
   return (
     <div className="h-14 bg-white px-4 flex items-center justify-between">
       <div className="flex items-center gap-3">
-        <div className="flex -space-x-2">
-          {memberColors.map((color, i) => (
-            <div
-              key={i}
-              className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center"
-              style={{ backgroundColor: color, zIndex: 3 - i }}
-            />
-          ))}
+        <div
+          className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold text-gray-600"
+          style={{ backgroundColor: '#E8D5B7' }}
+        >
+          {initial}
         </div>
-        <div>
-          <p className="text-sm font-semibold text-gray-800">{userName}</p>
-        </div>
+        <p className="text-sm font-semibold text-gray-800">{userName}</p>
       </div>
 
       <div className="flex items-center gap-1">

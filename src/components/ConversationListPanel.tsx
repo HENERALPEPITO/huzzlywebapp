@@ -12,7 +12,7 @@ interface ConversationListPanelProps {
 const tabs = ['Worker', 'Groups', 'Support'] as const;
 
 export default function ConversationListPanel({ onSelectContact, selectedContactId }: ConversationListPanelProps) {
-  const [activeTab, setActiveTab] = useState<typeof tabs[number]>('Groups');
+  const [activeTab, setActiveTab] = useState<typeof tabs[number]>('Worker');
   const [searchQuery, setSearchQuery] = useState('');
 
   return (
@@ -53,7 +53,7 @@ export default function ConversationListPanel({ onSelectContact, selectedContact
           ))}
         </div>
 
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Groups</p>
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{activeTab}</p>
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 pb-4">
