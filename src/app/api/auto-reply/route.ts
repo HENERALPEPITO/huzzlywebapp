@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       incomingMessage,
       senderId,
       receiverId,
-      useFAQ = false, // Changed to false by default to test
+      useFAQ = true,
       faqCategory,
       autoSend = true,
     } = body;
@@ -57,30 +57,50 @@ export async function POST(request: NextRequest) {
     const grokService = getGrokService();
     let autoReply: string;
 
-    // Try simple reply first (no FAQ) to test if Grok API is working
-    try {
+    const selectFaqContext = (full: string, category?: string) => {
+      if (!category) return full;
+      const lines = full.split('\n');
+      const startIdx = lines.findIndex((l) => l.trim() === category.trim());
+      if (startIdx === -1) return full;
+
+      // Stop at next top-level category heading (these are what getFAQCategories returns)
+      const nextIdx = lines.findIndex(
+        (l, idx) =>
+          idx > startIdx &&
+          (l.trim().startsWith('FOR WORKERS') || l.trim().startsWith('FOR CLIENTS'))
+      );
+
+      const slice = nextIdx === -1 ? lines.slice(startIdx) : lines.slice(startIdx, nextIdx);
+      return slice.join('\n').trim() || full;
+    };
+
+    const faqContext = useFAQ ? selectFaqContext(HUZLY_FAQ_CONTENT, faqCategory) : null;
+
+    if (faqContext) {
+      console.log('[AUTO-REPLY] Using FAQ context', {
+        category: faqCategory ?? null,
+        faqContextLength: faqContext.length,
+      });
+
+      const history = body.conversationHistory;
+      if (history && Array.isArray(history) && history.length > 0) {
+        autoReply = await grokService.continueConversationWithFAQ(
+          history.map((m) => ({ role: m.role, content: m.content })),
+          trimmedMessage,
+          faqContext
+        );
+      } else {
+        autoReply = await grokService.generateFAQBasedResponse(trimmedMessage, faqContext);
+      }
+    } else {
       console.log('[AUTO-REPLY] Using simple reply method (no FAQ context)');
       autoReply = await grokService.generateAutoReply(
         trimmedMessage,
         'You are a helpful assistant. Reply briefly and professionally.'
       );
-
-      console.log('[AUTO-REPLY] Reply generated successfully:', autoReply.substring(0, 100));
-    } catch (simpleError: any) {
-      console.error('[AUTO-REPLY] Simple reply failed, trying with FAQ...');
-      
-      // If simple reply fails, try with FAQ as backup
-      try {
-        console.log('[AUTO-REPLY] Using FAQ context as fallback...');
-        autoReply = await grokService.generateFAQBasedResponse(
-          trimmedMessage, 
-          HUZLY_FAQ_CONTENT
-        );
-      } catch (faqError: any) {
-        console.error('[AUTO-REPLY] FAQ fallback also failed');
-        throw faqError;
-      }
     }
+
+    console.log('[AUTO-REPLY] Reply generated successfully:', autoReply.substring(0, 100));
 
     // Send the auto-reply if requested
     if (autoSend) {
