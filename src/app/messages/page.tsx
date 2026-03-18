@@ -236,8 +236,9 @@ export default function MessagesPage() {
     return () => { unsubscribe(); };
   }, [selectedContact, currentUserId, selectedShiftId, autoReplyEnabled, generateAndSendAutoReply]);
 
-  const handleSendMessage = async (messageText: string) => {
+  const handleSendMessage = async (messageText: string, attachment?: { fileUrl: string; fileName: string; fileSize: number; fileType: string }) => {
     if (!selectedContact || !currentUserId) return;
+    if (!messageText && !attachment) return;
     setIsSending(true);
     try {
       const created = await sendMessageApi({
@@ -245,6 +246,7 @@ export default function MessagesPage() {
         receiverId: selectedContact.user_id,
         content: messageText,
         shiftId: selectedShiftId || undefined,
+        attachments: attachment || undefined,
       });
       if (created) {
         setMessages((prev) => {
@@ -257,6 +259,7 @@ export default function MessagesPage() {
               isSender: true,
               timestamp: new Date(created.sent_at),
               sender_id: created.sender_id,
+              attachments: parseAttachments(created.attachments),
             },
           ];
         });
@@ -339,7 +342,7 @@ export default function MessagesPage() {
 
           <div className="flex-shrink-0">
             {selectedContact && (
-              <MessageInputWithFAQ onSend={handleSendMessage} isLoading={isSending} showFAQIndicator={true} />
+              <MessageInputWithFAQ onSend={handleSendMessage} isLoading={isSending} showFAQIndicator={true} senderId={currentUserId} />
             )}
           </div>
         </div>

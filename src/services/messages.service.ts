@@ -45,6 +45,7 @@ export interface SendMessageParams {
   receiverId: string;
   content: string;
   shiftId?: string;
+  attachments?: { fileUrl: string; fileName: string; fileSize: number; fileType: string } | null;
 }
 
 export async function sendMessage({
@@ -52,13 +53,18 @@ export async function sendMessage({
   receiverId,
   content,
   shiftId,
+  attachments,
 }: SendMessageParams): Promise<MessageRecord | null> {
-  const payload: Partial<MessageRecord> = {
+  const payload: Record<string, any> = {
     sender_id: senderId,
     receiver_id: receiverId,
     content,
     shift_id: shiftId ?? null,
   };
+
+  if (attachments) {
+    payload.attachments = attachments;
+  }
 
   const { data, error } = await supabase
     .from('messages')
@@ -72,6 +78,40 @@ export async function sendMessage({
   }
 
   return data as MessageRecord;
+}
+
+export async function uploadMessageFile(
+  file: File,
+  senderId: string,
+): Promise<{ fileUrl: string; fileName: string; fileSize: number; fileType: string }> {
+  const timestamp = Date.now();
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const filePath = `message_attachments/${senderId}_${timestamp}_${safeName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('message-files')
+    .upload(filePath, file);
+
+  if (uploadError) {
+    console.error('Error uploading file:', uploadError);
+    throw uploadError;
+  }
+
+  const { data: signedData, error: signedError } = await supabase.storage
+    .from('message-files')
+    .createSignedUrl(filePath, 60 * 60 * 24 * 7);
+
+  if (signedError || !signedData?.signedUrl) {
+    console.error('Error creating signed URL:', signedError);
+    throw signedError || new Error('Failed to create signed URL');
+  }
+
+  return {
+    fileUrl: signedData.signedUrl,
+    fileName: file.name,
+    fileSize: file.size,
+    fileType: file.type || 'application/octet-stream',
+  };
 }
 
 export interface SubscribeParams {
