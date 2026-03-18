@@ -57,7 +57,7 @@ export default function ConversationListPanel({ onSelectContact, selectedContact
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 pb-4">
-        <ContactList onSelectContact={onSelectContact} selectedContactId={selectedContactId} />
+        <ContactList onSelectContact={onSelectContact} selectedContactId={selectedContactId} searchQuery={searchQuery} />
       </div>
     </div>
   );

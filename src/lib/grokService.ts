@@ -232,19 +232,20 @@ class GrokService {
 
       console.log('[GROK] Generating FAQ-based response with context length:', faqContext.length);
 
-      const systemPrompt = `You are a helpful assistant with access to an FAQ knowledge base. Use the FAQ information below to answer user questions accurately.
+      const systemPrompt = `You are the Huzly support assistant. You MUST answer questions using the FAQ knowledge base below. The FAQ is your primary and authoritative source of information.
 
---- FAQ KNOWLEDGE BASE ---
+--- HUZLY FAQ KNOWLEDGE BASE ---
 ${faqContext}
 --- END FAQ KNOWLEDGE BASE ---
 
-Instructions:
-1. Check if the user question is answered in the FAQ above
-2. If yes, provide the FAQ answer as your primary response
-3. You may enhance it with additional helpful context
-4. If not in FAQ, provide a helpful response based on your knowledge
-5. Always be professional and friendly
-6. If uncertain, acknowledge and offer to help further`;
+STRICT RULES:
+1. ALWAYS check the FAQ first for every question
+2. If the answer exists in the FAQ, use it as your response — do not make up different information
+3. You may rephrase the FAQ answer for clarity, but keep the facts and details accurate
+4. If the question is not covered in the FAQ, say so honestly and provide general helpful guidance
+5. Keep responses concise, professional, and friendly
+6. Never contradict information in the FAQ
+7. When relevant, reference specific Huzly features, processes, or policies from the FAQ`;
 
       const response = await this.createCompletion({
         messages: [
@@ -257,7 +258,7 @@ Instructions:
             content: userMessage,
           },
         ],
-        temperature: 0.5,
+        temperature: 0.4,
         max_tokens: 1024,
       });
 
@@ -283,18 +284,20 @@ Instructions:
     faqContext: string
   ): Promise<string> {
     try {
-      const systemPrompt = `You are a helpful assistant with access to an FAQ knowledge base. Use the FAQ information below to answer user questions accurately.
+      const systemPrompt = `You are the Huzly support assistant. You MUST answer questions using the FAQ knowledge base below. The FAQ is your primary and authoritative source of information.
 
---- FAQ KNOWLEDGE BASE ---
+--- HUZLY FAQ KNOWLEDGE BASE ---
 ${faqContext}
 --- END FAQ KNOWLEDGE BASE ---
 
-Instructions:
-1. Use previous conversation context when relevant
-2. Check if current or previous questions are answered in the FAQ
-3. Provide consistent, helpful responses
-4. Enhance FAQ answers with relevant context from the conversation
-5. Always maintain a professional and friendly tone`;
+STRICT RULES:
+1. ALWAYS check the FAQ first for every question
+2. If the answer exists in the FAQ, use it as your response — do not make up different information
+3. You may rephrase the FAQ answer for clarity, but keep the facts and details accurate
+4. Use previous conversation context when relevant
+5. If the question is not covered in the FAQ, say so honestly and provide general helpful guidance
+6. Keep responses concise, professional, and friendly
+7. Never contradict information in the FAQ`;
 
       // Build messages array carefully
       const messages: GrokMessage[] = [
@@ -321,7 +324,7 @@ Instructions:
 
       const response = await this.createCompletion({
         messages,
-        temperature: 0.6,
+        temperature: 0.4,
         max_tokens: 1024,
       });
 

@@ -6,6 +6,7 @@ import { fetchContacts, Contact } from '@/lib/contactsService';
 interface ContactListProps {
   onSelectContact: (contact: Contact) => void;
   selectedContactId?: string;
+  searchQuery?: string;
 }
 
 const avatarColors = [
@@ -18,7 +19,7 @@ function getAvatarColor(id: string): string {
   return avatarColors[sum % avatarColors.length];
 }
 
-export default function ContactList({ onSelectContact, selectedContactId }: ContactListProps) {
+export default function ContactList({ onSelectContact, selectedContactId, searchQuery }: ContactListProps) {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +42,10 @@ export default function ContactList({ onSelectContact, selectedContactId }: Cont
     loadContacts();
   }, []);
 
+  const filteredContacts = searchQuery?.trim()
+    ? contacts.filter((c) => c.name.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+    : contacts;
+
   if (isLoading) {
     return (
       <div className="px-2 space-y-2">
@@ -60,9 +65,17 @@ export default function ContactList({ onSelectContact, selectedContactId }: Cont
     );
   }
 
+  if (filteredContacts.length === 0) {
+    return (
+      <div className="p-4 text-center">
+        <p className="text-gray-500 text-sm">No contacts matching "{searchQuery}"</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-1">
-      {contacts.map((contact) => {
+      {filteredContacts.map((contact) => {
         const sum = contact.user_id.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
         const unread = sum % 4;
         const isSelected = selectedContactId === contact.user_id;
