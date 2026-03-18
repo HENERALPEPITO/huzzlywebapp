@@ -1,5 +1,4 @@
 import { supabase } from '@/lib/supabaseClient';
-import type { RealtimePostgresInsertPayload } from '@supabase/supabase-js';
 
 export interface MessageRecord {
   id: string;
@@ -137,8 +136,8 @@ export function subscribeToMessages({
         schema: 'public',
         table: 'messages',
       },
-      (payload: RealtimePostgresInsertPayload<MessageRecord>) => {
-        const message = payload.new;
+      (payload) => {
+        const message = payload.new as MessageRecord;
 
         const isBetweenUsers =
           (message.sender_id === currentUserId && message.receiver_id === otherUserId) ||
