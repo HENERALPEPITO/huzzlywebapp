@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { signInClient, signUpClient } from '@/lib/authService';
+import type { Session } from '@supabase/supabase-js';
 
 export default function AuthScreen() {
   const router = useRouter();
@@ -21,7 +22,8 @@ export default function AuthScreen() {
 
   // Check if session exists on load
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then((res: { data: { session: Session | null } }) => {
+      const session = res.data.session;
       if (session) {
         router.push('/messages');
       } else {

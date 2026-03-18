@@ -342,7 +342,12 @@ export default function MessagesPage() {
 
           <div className="flex-shrink-0">
             {selectedContact && (
-              <MessageInputWithFAQ onSend={handleSendMessage} isLoading={isSending} showFAQIndicator={true} senderId={currentUserId} />
+              <MessageInputWithFAQ
+                onSend={handleSendMessage}
+                isLoading={isSending}
+                showFAQIndicator={true}
+                senderId={currentUserId ?? undefined}
+              />
             )}
           </div>
         </div>
