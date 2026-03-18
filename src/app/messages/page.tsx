@@ -38,18 +38,59 @@ interface Message {
   attachments?: Attachment[] | null;
 }
 
+function extractUrl(obj: any): string {
+  if (typeof obj === 'string') return obj;
+  if (!obj || typeof obj !== 'object') return '';
+  return obj.fileUrl || obj.url || obj.uri || obj.file_url || obj.publicUrl || obj.signedUrl ||
+    obj.public_url || obj.signed_url || obj.download_url || obj.src || obj.href || obj.path || '';
+}
+
 function parseAttachments(raw: any): Attachment[] | null {
   if (!raw) return null;
   try {
-    const arr = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    if (!Array.isArray(arr) || arr.length === 0) return null;
-    return arr.map((a: any) => ({
-      url: a.url || a.uri || a.file_url || a.path || '',
-      type: a.type || a.mime_type || a.content_type || guessType(a.url || a.uri || a.file_url || a.name || ''),
-      name: a.name || a.filename || a.file_name || 'Attachment',
-      size: a.size || a.file_size || undefined,
-    })).filter((a: Attachment) => a.url);
-  } catch {
+    let parsed = raw;
+    if (typeof raw === 'string') {
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        if (raw.startsWith('http://') || raw.startsWith('https://')) {
+          return [{ url: raw, type: guessType(raw), name: raw.split('/').pop() || 'Attachment' }];
+        }
+        return null;
+      }
+    }
+
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      parsed = [parsed];
+    }
+
+    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+
+    const results: Attachment[] = [];
+    for (const a of parsed) {
+      if (typeof a === 'string') {
+        results.push({ url: a, type: guessType(a), name: a.split('/').pop() || 'Attachment' });
+        continue;
+      }
+      if (!a || typeof a !== 'object') continue;
+
+      const url = extractUrl(a);
+      if (!url) {
+        console.warn('[Attachments] Could not find URL in attachment object:', JSON.stringify(a));
+        continue;
+      }
+
+      results.push({
+        url,
+        type: a.fileType || a.type || a.mime_type || a.content_type || a.mimeType || guessType(url + ' ' + (a.name || a.fileName || '')),
+        name: a.fileName || a.name || a.filename || a.file_name || url.split('/').pop() || 'Attachment',
+        size: a.fileSize || a.size || a.file_size || undefined,
+      });
+    }
+
+    return results.length > 0 ? results : null;
+  } catch (err) {
+    console.error('[Attachments] Failed to parse:', raw, err);
     return null;
   }
 }
