@@ -4,6 +4,13 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import MessageBubble from './MessageBubble';
 import TypingIndicator from './TypingIndicator';
 
+interface Attachment {
+  url: string;
+  type?: string;
+  name?: string;
+  size?: number;
+}
+
 interface Message {
   id: string;
   content: string;
@@ -11,6 +18,7 @@ interface Message {
   timestamp: Date;
   senderName?: string;
   senderInitial?: string;
+  attachments?: Attachment[] | null;
 }
 
 interface ChatMessagesProps {
@@ -153,6 +161,7 @@ export default function ChatMessages({
                       senderInitial={message.senderInitial}
                       isGroupedWithPrev={isGroupedWithPrev && !showDate}
                       isGroupedWithNext={isGroupedWithNext}
+                      attachments={message.attachments}
                     />
                   </div>
                 );

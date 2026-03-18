@@ -20,6 +20,13 @@ import {
   MessageRecord,
 } from '@/services/messages.service';
 
+interface Attachment {
+  url: string;
+  type?: string;
+  name?: string;
+  size?: number;
+}
+
 interface Message {
   id: string;
   content: string;
@@ -28,6 +35,34 @@ interface Message {
   senderName?: string;
   senderInitial?: string;
   sender_id?: string;
+  attachments?: Attachment[] | null;
+}
+
+function parseAttachments(raw: any): Attachment[] | null {
+  if (!raw) return null;
+  try {
+    const arr = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (!Array.isArray(arr) || arr.length === 0) return null;
+    return arr.map((a: any) => ({
+      url: a.url || a.uri || a.file_url || a.path || '',
+      type: a.type || a.mime_type || a.content_type || guessType(a.url || a.uri || a.file_url || a.name || ''),
+      name: a.name || a.filename || a.file_name || 'Attachment',
+      size: a.size || a.file_size || undefined,
+    })).filter((a: Attachment) => a.url);
+  } catch {
+    return null;
+  }
+}
+
+function guessType(urlOrName: string): string {
+  const lower = urlOrName.toLowerCase();
+  if (/\.(jpg|jpeg|png|gif|webp|svg|bmp|heic)/.test(lower)) return 'image';
+  if (/\.(pdf)/.test(lower)) return 'pdf';
+  if (/\.(doc|docx|xls|xlsx|ppt|pptx|txt|csv)/.test(lower)) return 'document';
+  if (/\.(mp4|mov|avi|webm)/.test(lower)) return 'video';
+  if (/image/.test(lower)) return 'image';
+  if (/pdf/.test(lower)) return 'pdf';
+  return 'file';
 }
 
 export default function MessagesPage() {
@@ -116,6 +151,7 @@ export default function MessagesPage() {
           senderName: m.sender_id === currentUserId ? 'You' : selectedContact.name,
           senderInitial: m.sender_id === currentUserId ? undefined : selectedContact.name.charAt(0).toUpperCase(),
           sender_id: m.sender_id,
+          attachments: parseAttachments(m.attachments),
         }));
         setMessages(mapped);
         await markMessagesAsRead(currentUserId, selectedContact.user_id, selectedShiftId || undefined);
@@ -147,6 +183,7 @@ export default function MessagesPage() {
               senderName: m.sender_id === currentUserId ? 'You' : selectedContact.name,
               senderInitial: m.sender_id === currentUserId ? undefined : selectedContact.name.charAt(0).toUpperCase(),
               sender_id: m.sender_id,
+              attachments: parseAttachments(m.attachments),
             },
           ];
         });
