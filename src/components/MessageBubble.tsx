@@ -10,6 +10,31 @@ interface MessageBubbleProps {
   isGroupedWithNext?: boolean;
 }
 
+const senderColors = [
+  { bg: '#1E3A5F', text: '#FFFFFF', dot: '#1E3A5F' },
+  { bg: '#2A9D8F', text: '#FFFFFF', dot: '#2A9D8F' },
+  { bg: '#FFFFFF', text: '#374151', dot: '#6B7280', border: '1px solid #E5E7EB' },
+  { bg: '#3B82F6', text: '#FFFFFF', dot: '#3B82F6' },
+];
+
+function getSenderColor(name?: string) {
+  if (!name) return senderColors[0];
+  const sum = name.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  return senderColors[sum % senderColors.length];
+}
+
+function formatRelativeTime(timestamp: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - timestamp.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+
+  if (diffMin < 1) return 'now';
+  if (diffMin < 60) return `${diffMin}m`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}hr`;
+  return timestamp.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 export default function MessageBubble({
   content,
   isSender,
@@ -19,62 +44,40 @@ export default function MessageBubble({
   isGroupedWithPrev = false,
   isGroupedWithNext = false,
 }: MessageBubbleProps) {
-  const timeString = timestamp.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  });
-
-  const showTimestamp = !isGroupedWithNext;
-
-  if (isSender) {
-    return (
-      <div className="flex justify-end w-full px-4 mb-1">
-        <div className="flex flex-col items-end" style={{ maxWidth: '65%', minWidth: 0 }}>
-          <div
-            style={{
-              backgroundColor: '#0084ff',
-              color: 'white',
-              borderRadius: '18px',
-              padding: '8px 14px',
-              fontSize: '14px',
-              wordBreak: 'break-word',
-              overflowWrap: 'anywhere',
-              width: '100%',
-            }}
-          >
-            {content}
-          </div>
-          {showTimestamp && (
-            <span className="text-xs text-gray-500 mt-1">{timeString}</span>
-          )}
-        </div>
-      </div>
-    );
-  }
+  const showMeta = !isGroupedWithNext;
+  const sentColor = { bg: '#4CAF50', text: '#FFFFFF', dot: '#4CAF50' };
+  const color = isSender ? sentColor : getSenderColor(senderName);
+  const relTime = formatRelativeTime(timestamp);
+  const displayName = isSender ? (senderName || 'You') : (senderName || 'Unknown');
 
   return (
-    <div className="flex justify-start w-full px-4 mb-1">
-      <div className="w-8 h-8 rounded-full bg-neutral-200 flex items-center justify-center text-xs font-semibold text-gray-700 flex-shrink-0 mr-2">
-        {senderInitial || (senderName?.charAt(0) || 'U').toUpperCase()}
-      </div>
-      <div className="flex flex-col items-start" style={{ maxWidth: '65%', minWidth: 0 }}>
+    <div className={`flex w-full px-4 ${isGroupedWithPrev ? 'mt-1' : 'mt-3'} ${isSender ? 'justify-end' : 'justify-start'}`}>
+      <div className={`flex flex-col ${isSender ? 'items-end' : 'items-start'}`} style={{ maxWidth: '70%' }}>
         <div
           style={{
-            backgroundColor: '#F0F2F5',
-            color: '#1c1e21',
-            borderRadius: '18px',
-            padding: '8px 14px',
-            fontSize: '14px',
+            backgroundColor: color.bg,
+            color: color.text,
+            borderRadius: '12px',
+            padding: '10px 16px',
+            fontSize: '13px',
+            lineHeight: '1.5',
             wordBreak: 'break-word',
             overflowWrap: 'anywhere',
-            width: '100%',
+            border: (color as any).border || 'none',
           }}
         >
           {content}
         </div>
-        {showTimestamp && (
-          <span className="text-xs text-gray-500 mt-1">{timeString}</span>
+        {showMeta && (
+          <div className="flex items-center gap-1.5 mt-1 px-1">
+            <span
+              className="w-2 h-2 rounded-full flex-shrink-0"
+              style={{ backgroundColor: color.dot }}
+            />
+            <span className="text-[11px] text-gray-500">
+              {displayName} • {relTime}
+            </span>
+          </div>
         )}
       </div>
     </div>

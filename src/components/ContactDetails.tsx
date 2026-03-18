@@ -1,34 +1,42 @@
 'use client';
 
-import { Mail, Phone, MapPin } from 'lucide-react';
+import { Clock, Users } from 'lucide-react';
 
 export default function ContactDetails({ contact }: { contact?: any }) {
-  const c = contact || { name: 'Jane Doe', role: 'Picker/Packer', email: 'janedoe@gmail.com', phone: '+1 222 002 2001', address: '512 West Street San Francisco', rating: 4.9 };
+  if (!contact) {
+    return (
+      <aside className="h-full flex items-center justify-center bg-gray-50/50 p-4">
+        <p className="text-sm text-gray-400">Select a conversation to view details</p>
+      </aside>
+    );
+  }
+
+  const name = contact.name || 'Monday Group';
 
   return (
-    <aside className="w-72 p-4">
-      <div className="bg-white rounded-xl shadow-sm p-5" style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-[#E6EEF9] flex items-center justify-center text-[var(--huzly-800)] font-semibold text-xl">{c.name.charAt(0)}</div>
-          <div>
-            <p className="text-[var(--neutral-700)] font-semibold text-lg">{c.name}</p>
-            <p className="text-[var(--neutral-500)] text-sm">{c.role}</p>
+    <aside className="h-full bg-gray-50/50 p-5">
+      <div className="bg-white rounded-2xl shadow-sm p-6" style={{ boxShadow: '0 1px 8px rgba(0,0,0,0.06)' }}>
+        <div className="flex flex-col items-center text-center">
+          <div
+            className="w-16 h-16 rounded-full flex items-center justify-center mb-3"
+            style={{ backgroundColor: '#E8D5B7' }}
+          >
+            <span className="text-xl font-semibold text-gray-700">
+              {name.charAt(0).toUpperCase()}
+            </span>
           </div>
+
+          <h3 className="font-semibold text-gray-800 text-base">{name}</h3>
         </div>
 
-        <div className="mt-4 space-y-2 text-sm text-[var(--neutral-600)]">
-          <div className="flex items-center gap-2"><Mail className="w-4 h-4" /> <span>{c.email}</span></div>
-          <div className="flex items-center gap-2"><Phone className="w-4 h-4" /> <span>{c.phone}</span></div>
-          <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /> <span>{c.address}</span></div>
-        </div>
-
-        <div className="mt-5 border-t pt-4">
-          <div className="space-y-3 text-sm">
-            <div className="flex items-center justify-between"><span className="text-[var(--neutral-600)]">⭐ Trust Rating</span><span className="font-semibold">4.9</span></div>
-            <div className="flex items-center justify-between"><span className="text-[var(--neutral-600)]">📅 Shifts</span><span className="font-semibold">594</span></div>
-            <div className="flex items-center justify-between"><span className="text-[var(--neutral-600)]">🕒 Since</span><span className="font-semibold">2021</span></div>
-            <div className="flex items-center justify-between"><span className="text-[var(--neutral-600)]">💰 Total Earnings</span><span className="font-semibold">$50,201</span></div>
-            <div className="flex items-center justify-between"><span className="text-[var(--neutral-600)]">🏢 Employers</span><span className="font-semibold">310</span></div>
+        <div className="mt-5 space-y-3">
+          <div className="flex items-center gap-3 text-sm text-gray-600">
+            <Users className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <span>{name}</span>
+          </div>
+          <div className="flex items-center gap-3 text-sm text-gray-600">
+            <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <span>Created on: 1/22/2026</span>
           </div>
         </div>
       </div>

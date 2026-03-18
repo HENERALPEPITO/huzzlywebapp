@@ -1,31 +1,41 @@
-﻿'use client';
+'use client';
 
-import { Phone, MoreHorizontal, ChevronLeft, MessageSquare } from 'lucide-react';
+import { Phone, Video, MoreHorizontal } from 'lucide-react';
 
 interface ChatHeaderProps {
   userName: string;
   isOnline?: boolean;
 }
 
-export default function ChatHeader({ userName, isOnline = true }: ChatHeaderProps) {
-  return (
-    <div className="flex-shrink-0 h-14 border-b border-gray-200 bg-white px-3 flex items-center">
-      <div className="w-10 flex items-center">
-        <button className="p-2 rounded-full text-[#475569] hover:bg-[#F1F5F9] transition-colors" title="Back" type="button">
-          <ChevronLeft className="w-5 h-5" />
-        </button>
-      </div>
+const memberColors = ['#E8D5B7', '#D4E8D1', '#D1D8E8'];
 
-      <div className="flex-1 text-center">
-        <div className="flex flex-col items-center">
-          <p className="font-semibold text-[var(--neutral-700)] leading-tight truncate">{userName}</p>
-          <p className="text-xs text-[var(--neutral-500)] leading-tight">{isOnline ? 'Online' : 'Offline'}</p>
+export default function ChatHeader({ userName }: ChatHeaderProps) {
+  return (
+    <div className="h-14 bg-white px-4 flex items-center justify-between">
+      <div className="flex items-center gap-3">
+        <div className="flex -space-x-2">
+          {memberColors.map((color, i) => (
+            <div
+              key={i}
+              className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center"
+              style={{ backgroundColor: color, zIndex: 3 - i }}
+            />
+          ))}
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-gray-800">{userName}</p>
         </div>
       </div>
 
-      <div className="w-10 flex items-center justify-end">
-        <button className="p-2 rounded-full text-[var(--huzly-500)] hover:bg-neutral-100 transition-colors" title="Message" type="button">
-          <MessageSquare className="w-5 h-5" />
+      <div className="flex items-center gap-1">
+        <button className="w-9 h-9 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors">
+          <Phone className="w-[18px] h-[18px]" />
+        </button>
+        <button className="w-9 h-9 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors">
+          <Video className="w-[18px] h-[18px]" />
+        </button>
+        <button className="w-9 h-9 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors">
+          <MoreHorizontal className="w-[18px] h-[18px]" />
         </button>
       </div>
     </div>

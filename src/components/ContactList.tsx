@@ -2,12 +2,37 @@
 
 import { useState, useEffect } from 'react';
 import { fetchContacts, Contact } from '@/lib/contactsService';
-import { debugFetchWorkers } from '@/lib/debugService';
 
 interface ContactListProps {
   onSelectContact: (contact: Contact) => void;
   selectedContactId?: string;
 }
+
+const avatarColors = [
+  '#E8D5B7', '#D4E8D1', '#D1D8E8', '#E8D1D8', '#D1E8E5',
+  '#E8E1D1', '#D1D1E8', '#E8D1D1', '#C9E0D4', '#E0D4C9',
+];
+
+function getAvatarColor(id: string, offset = 0): string {
+  const sum = id.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  return avatarColors[(sum + offset) % avatarColors.length];
+}
+
+const groupNames = [
+  'Good morning team!',
+  'Task update',
+  'System notice',
+  'End-of-day reminder',
+  'Heads up',
+];
+
+const groupPreviews = [
+  'Please be on time and ready for today\'s...',
+  'Orders for Zone B are a priority today...',
+  'The app may be slow this afternoon due to maintenance...',
+  'Submit your reports before clocking out...',
+  'Safety inspection at 5:00 PM. Make sure work areas are clean.',
+];
 
 export default function ContactList({ onSelectContact, selectedContactId }: ContactListProps) {
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -21,19 +46,9 @@ export default function ContactList({ onSelectContact, selectedContactId }: Cont
         setError(null);
         const data = await fetchContacts();
         setContacts(data);
-        
-        if (data.length === 0) {
-          console.warn('No contacts found. Running debug...');
-          // Run debug check in the background
-          setTimeout(() => debugFetchWorkers(), 100);
-        }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to load contacts';
         setError(message);
-        console.error('Error loading contacts:', err);
-        
-        // Trigger debug info on error
-        setTimeout(() => debugFetchWorkers(), 100);
       } finally {
         setIsLoading(false);
       }
@@ -44,9 +59,9 @@ export default function ContactList({ onSelectContact, selectedContactId }: Cont
 
   if (isLoading) {
     return (
-      <div className="p-4 space-y-3">
-        {[...Array(6)].map((_, i) => (
-          <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse" />
+      <div className="px-2 space-y-2">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="h-16 bg-gray-50 rounded-xl animate-pulse" />
         ))}
       </div>
     );
@@ -54,46 +69,53 @@ export default function ContactList({ onSelectContact, selectedContactId }: Cont
 
   if (error || contacts.length === 0) {
     return (
-      <div className="p-4">
-        <div className="text-center py-8">
-          <p className="text-gray-600 font-medium mb-2">No contacts available</p>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-        </div>
+      <div className="p-4 text-center">
+        <p className="text-gray-500 text-sm">No contacts available</p>
+        {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
       </div>
     );
   }
 
   return (
-    <div className="px-2">
-      {contacts.map((contact) => {
-        // deterministic mock unread count for demo
+    <div className="space-y-1">
+      {contacts.map((contact, idx) => {
         const sum = contact.user_id.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
-        const unread = sum % 4; // 0-3
+        const unread = sum % 4;
+        const groupName = groupNames[idx % groupNames.length];
+        const preview = groupPreviews[idx % groupPreviews.length];
+        const avatarCount = 2 + (idx % 3);
+        const isSelected = selectedContactId === contact.user_id;
+
         return (
           <button
             key={contact.user_id}
             onClick={() => onSelectContact(contact)}
-            className={`w-full text-left flex items-center gap-3 p-3 rounded-lg transition-colors mb-2 ${
-              selectedContactId === contact.user_id ? 'bg-[#EEF3FF] border border-[var(--huzly-500)]' : 'hover:bg-[#F4F7FC]'
+            className={`w-full text-left flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${
+              isSelected
+                ? 'bg-[#EDF2FF] shadow-sm'
+                : 'hover:bg-gray-50'
             }`}
-            style={{ padding: '12px 16px' }}
           >
-            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-white" style={{ boxShadow: '0 1px 2px rgba(16,24,40,0.06)', border: '1px solid var(--neutral-100)' }}>
-              <span className="text-[var(--huzly-800)] font-semibold">{contact.name.charAt(0).toUpperCase()}</span>
+            <div className="flex -space-x-2 flex-shrink-0">
+              {Array.from({ length: avatarCount }).map((_, i) => (
+                <div
+                  key={i}
+                  className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-[10px] font-semibold text-gray-600"
+                  style={{ backgroundColor: getAvatarColor(contact.user_id, i), zIndex: avatarCount - i }}
+                />
+              ))}
             </div>
 
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-[var(--neutral-700)] truncate">{contact.name}</p>
-              <p className="text-xs text-[var(--neutral-500)] truncate">Application for this role...</p>
+              <p className="text-sm font-semibold text-gray-800 truncate">{groupName}</p>
+              <p className="text-xs text-gray-400 truncate">{preview}</p>
             </div>
 
-            <div className="flex items-center gap-2">
-              {unread > 0 && (
-                <div className="bg-[#FF4D4F] text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-semibold">
-                  {unread}
-                </div>
-              )}
-            </div>
+            {unread > 0 && (
+              <div className="w-5 h-5 rounded-full bg-[#FF4D4F] flex items-center justify-center flex-shrink-0">
+                <span className="text-[10px] font-bold text-white">{unread}</span>
+              </div>
+            )}
           </button>
         );
       })}

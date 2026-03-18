@@ -12,7 +12,17 @@ A Next.js 16 web application migrated from Vercel to Replit.
 
 ## Project Structure
 - `src/app/` — Next.js App Router pages and API routes
+- `src/app/messages/` — Messaging page (redesigned to match Figma)
 - `src/components/` — Reusable React components
+  - `LeftSidebar.tsx` — Dark navy sidebar with icon navigation
+  - `ConversationListPanel.tsx` — Search, tabs, group conversation list
+  - `ContactList.tsx` — Group conversation cards with avatar stacks
+  - `ChatHeader.tsx` — Chat header with member avatars and action icons
+  - `ChatMessages.tsx` — Message list with date separators
+  - `MessageBubble.tsx` — Colored message bubbles with sender metadata
+  - `MessageInputWithFAQ.tsx` — Input bar with FAQ/AI suggestion support
+  - `ContactDetails.tsx` — Right panel with group/contact info
+  - `EmptyConversation.tsx` — Empty state for no selected conversation
 - `src/lib/` — Utilities, Supabase client, services
 - `src/hooks/` — Custom React hooks
 - `src/services/` — Service layer (auth, FAQ, contacts, etc.)
@@ -34,3 +44,4 @@ npm run start   # Production server on port 5000
 ## Replit Notes
 - Dev/start scripts bind to `0.0.0.0:5000` for Replit preview pane compatibility
 - Workflow: "Start application" runs `npm run dev`
+- Tailwind CSS v4 uses `@import "tailwindcss" source(none)` with `@source` directives to avoid Turbopack compatibility issues with generated mask utilities
