@@ -125,8 +125,8 @@ export default function MessageBubble({
   if (!hasContent && !hasAttachments) return null;
 
   return (
-    <div className={`flex w-full px-4 ${isGroupedWithPrev ? 'mt-1' : 'mt-3'} ${isSender ? 'justify-end' : 'justify-start'}`}>
-      <div className={`flex flex-col ${isSender ? 'items-end' : 'items-start'}`} style={{ maxWidth: '70%' }}>
+    <div className={`flex w-full px-2 md:px-4 ${isGroupedWithPrev ? 'mt-1' : 'mt-3'} ${isSender ? 'justify-end' : 'justify-start'}`}>
+      <div className={`flex flex-col ${isSender ? 'items-end' : 'items-start'} max-w-[85%] md:max-w-[70%]`}>
         <div
           style={{
             ...bubbleStyle,

@@ -17,7 +17,11 @@ export default function ConversationListPanel({ onSelectContact, selectedContact
 
   return (
     <div className="h-full flex flex-col bg-white border-r border-gray-100">
-      <div className="px-4 pt-5 pb-2">
+      <div className="md:hidden flex items-center gap-3 px-3 pt-4 pb-2">
+        <img src="/images/logo.png" alt="Huzzly" className="w-8 h-8 object-contain" />
+        <h1 className="text-lg font-bold text-gray-900">Huzzly</h1>
+      </div>
+      <div className="px-3 md:px-4 pt-2 md:pt-5 pb-2">
         <div className="relative mb-4">
           <input
             type="text"

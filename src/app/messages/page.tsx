@@ -106,6 +106,8 @@ function guessType(urlOrName: string): string {
   return 'file';
 }
 
+type MobileView = 'contacts' | 'chat' | 'details';
+
 export default function MessagesPage() {
   const router = useRouter();
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
@@ -116,6 +118,7 @@ export default function MessagesPage() {
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
   const [autoReplyEnabled, setAutoReplyEnabled] = useState(true);
+  const [mobileView, setMobileView] = useState<MobileView>('contacts');
 
   const { isGenerating: isAutoReplyGenerating, generateAndSendAutoReply } = useAutoReply({
     enabled: autoReplyEnabled,
@@ -169,6 +172,7 @@ export default function MessagesPage() {
         name: decodeURIComponent(receiverName),
       };
       setSelectedContact(contact);
+      setMobileView('chat');
     }
     if (shiftId) setSelectedShiftId(shiftId);
   }, []);
@@ -284,27 +288,59 @@ export default function MessagesPage() {
     );
   }
 
+  const handleSelectContact = (contact: Contact) => {
+    setSelectedContact(contact);
+    setMobileView('chat');
+  };
+
+  const handleMobileBack = () => {
+    setMobileView('contacts');
+  };
+
+  const handleShowDetails = () => {
+    setMobileView('details');
+  };
+
+  const handleCloseDetails = () => {
+    setMobileView('chat');
+  };
+
   return (
     <div className="flex h-dvh overflow-hidden w-full bg-[#F8F9FB]">
       <LeftSidebar onLogout={handleLogout} />
 
-      <div className="flex flex-1 min-w-0 overflow-hidden">
-        <div className="w-[280px] flex-shrink-0 h-full overflow-hidden">
+      <div className="flex flex-1 min-w-0 overflow-hidden relative">
+        {/* Contact list panel */}
+        <div className={`
+          w-full md:w-[280px] flex-shrink-0 h-full overflow-hidden
+          ${mobileView === 'contacts' ? 'block' : 'hidden md:block'}
+          pb-16 md:pb-0
+        `}>
           <ConversationListPanel
-            onSelectContact={setSelectedContact}
+            onSelectContact={handleSelectContact}
             selectedContactId={selectedContact?.user_id}
           />
         </div>
 
-        <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden bg-white border-x border-gray-100">
+        {/* Chat panel */}
+        <div className={`
+          flex-1 min-w-0 flex flex-col h-full overflow-hidden bg-white md:border-x border-gray-100
+          ${mobileView === 'chat' ? 'flex' : 'hidden md:flex'}
+          pb-14 md:pb-0
+        `}>
           <div className="flex-shrink-0">
             {selectedContact ? (
               <div className="flex items-center justify-between border-b border-gray-100 h-14 bg-white">
-                <div className="flex-1">
-                  <ChatHeader userName={selectedContact.name} isOnline={true} />
+                <div className="flex-1 min-w-0">
+                  <ChatHeader
+                    userName={selectedContact.name}
+                    isOnline={true}
+                    onBack={handleMobileBack}
+                    onShowDetails={handleShowDetails}
+                  />
                 </div>
                 <div className="flex items-center gap-2 px-3 flex-shrink-0">
-                  <span className="text-xs font-medium text-gray-500">Auto-Reply</span>
+                  <span className="text-xs font-medium text-gray-500 hidden sm:inline">Auto-Reply</span>
                   <button
                     onClick={() => setAutoReplyEnabled(!autoReplyEnabled)}
                     className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
@@ -352,9 +388,28 @@ export default function MessagesPage() {
           </div>
         </div>
 
-        <div className="w-[260px] flex-shrink-0 h-full overflow-y-auto">
+        {/* Contact details panel - desktop */}
+        <div className="hidden lg:block w-[260px] flex-shrink-0 h-full overflow-y-auto">
           <ContactDetails contact={selectedContact} />
         </div>
+
+        {/* Contact details panel - mobile overlay */}
+        {mobileView === 'details' && (
+          <div className="lg:hidden fixed inset-0 z-[60] bg-white flex flex-col">
+            <div className="h-14 border-b border-gray-100 flex items-center px-4 gap-3 flex-shrink-0">
+              <button
+                onClick={handleCloseDetails}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+              </button>
+              <span className="text-sm font-semibold text-gray-800">Contact Details</span>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <ContactDetails contact={selectedContact} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
