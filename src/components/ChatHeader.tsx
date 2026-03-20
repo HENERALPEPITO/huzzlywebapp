@@ -1,16 +1,18 @@
 'use client';
 
-import { Phone, Video, MoreHorizontal, ArrowLeft, User } from 'lucide-react';
+import { Phone, Video, MoreHorizontal, ArrowLeft, User, Users } from 'lucide-react';
 
 interface ChatHeaderProps {
   userName: string;
   isOnline?: boolean;
   onBack?: () => void;
   onShowDetails?: () => void;
+  subtitle?: string;
 }
 
-export default function ChatHeader({ userName, onBack, onShowDetails }: ChatHeaderProps) {
+export default function ChatHeader({ userName, isOnline, onBack, onShowDetails, subtitle }: ChatHeaderProps) {
   const initial = userName.charAt(0).toUpperCase();
+  const isGroup = !!subtitle;
 
   return (
     <div className="h-14 bg-white px-3 md:px-4 flex items-center justify-between">
@@ -25,11 +27,16 @@ export default function ChatHeader({ userName, onBack, onShowDetails }: ChatHead
         )}
         <div
           className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold text-gray-600"
-          style={{ backgroundColor: '#E8D5B7' }}
+          style={{ backgroundColor: isGroup ? '#D1E8E5' : '#E8D5B7' }}
         >
-          {initial}
+          {isGroup ? <Users className="w-4 h-4" /> : initial}
         </div>
-        <p className="text-sm font-semibold text-gray-800">{userName}</p>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-gray-800 truncate">{userName}</p>
+          {subtitle && (
+            <p className="text-[11px] text-gray-400 truncate">{subtitle}</p>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center gap-1">

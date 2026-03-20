@@ -7,6 +7,7 @@ interface ContactListProps {
   onSelectContact: (contact: Contact) => void;
   selectedContactId?: string;
   searchQuery?: string;
+  unreadCounts?: Record<string, number>;
 }
 
 const avatarColors = [
@@ -19,7 +20,7 @@ function getAvatarColor(id: string): string {
   return avatarColors[sum % avatarColors.length];
 }
 
-export default function ContactList({ onSelectContact, selectedContactId, searchQuery }: ContactListProps) {
+export default function ContactList({ onSelectContact, selectedContactId, searchQuery, unreadCounts }: ContactListProps) {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -76,8 +77,7 @@ export default function ContactList({ onSelectContact, selectedContactId, search
   return (
     <div className="space-y-1">
       {filteredContacts.map((contact) => {
-        const sum = contact.user_id.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
-        const unread = sum % 4;
+        const unread = unreadCounts?.[contact.user_id] || 0;
         const isSelected = selectedContactId === contact.user_id;
         const initial = contact.name.charAt(0).toUpperCase();
 

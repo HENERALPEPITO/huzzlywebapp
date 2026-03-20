@@ -19,6 +19,13 @@ import {
   markMessagesAsRead,
   MessageRecord,
 } from '@/services/messages.service';
+import {
+  Group,
+  fetchUnreadCounts,
+  fetchGroupMessages as fetchGroupMsgs,
+  sendGroupMessage as sendGroupMsgApi,
+  GroupMessage,
+} from '@/services/groups.service';
 
 interface Attachment {
   url: string;
@@ -119,6 +126,10 @@ export default function MessagesPage() {
   const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
   const [autoReplyEnabled, setAutoReplyEnabled] = useState(true);
   const [mobileView, setMobileView] = useState<MobileView>('contacts');
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [totalUnread, setTotalUnread] = useState(0);
+  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
+  const [activeConversationType, setActiveConversationType] = useState<'contact' | 'group'>('contact');
 
   const { isGenerating: isAutoReplyGenerating, generateAndSendAutoReply } = useAutoReply({
     enabled: autoReplyEnabled,
@@ -160,6 +171,22 @@ export default function MessagesPage() {
   }, [router]);
 
   useEffect(() => {
+    if (!currentUserId) return;
+    const loadUnread = async () => {
+      try {
+        const { counts, total } = await fetchUnreadCounts(currentUserId);
+        setUnreadCounts(counts);
+        setTotalUnread(total);
+      } catch (err) {
+        console.error('[MessagesPage] Failed to load unread counts:', err);
+      }
+    };
+    loadUnread();
+    const interval = setInterval(loadUnread, 30000);
+    return () => clearInterval(interval);
+  }, [currentUserId]);
+
+  useEffect(() => {
     if (typeof window === 'undefined') return;
     const searchParams = new URLSearchParams(window.location.search);
     const receiverId = searchParams.get('receiver_id');
@@ -183,90 +210,172 @@ export default function MessagesPage() {
   };
 
   useEffect(() => {
-    if (!selectedContact || !currentUserId) return;
-    const load = async () => {
-      try {
-        setIsLoading(true);
-        const data = await fetchMessages(currentUserId, selectedContact.user_id, selectedShiftId || undefined);
-        const mapped: Message[] = data.map((m: MessageRecord) => ({
-          id: m.id,
-          content: m.content,
-          isSender: m.sender_id === currentUserId,
-          timestamp: new Date(m.sent_at),
-          senderName: m.sender_id === currentUserId ? 'You' : selectedContact.name,
-          senderInitial: m.sender_id === currentUserId ? undefined : selectedContact.name.charAt(0).toUpperCase(),
-          sender_id: m.sender_id,
-          attachments: parseAttachments(m.attachments),
-        }));
-        setMessages(mapped);
-        await markMessagesAsRead(currentUserId, selectedContact.user_id, selectedShiftId || undefined);
-      } catch (error) {
-        console.error('[MessagesPage] Failed to load messages:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    load();
-  }, [selectedContact, currentUserId, selectedShiftId]);
+    if (!currentUserId) return;
+
+    if (activeConversationType === 'contact' && selectedContact) {
+      const load = async () => {
+        try {
+          setIsLoading(true);
+          const data = await fetchMessages(currentUserId, selectedContact.user_id, selectedShiftId || undefined);
+          const mapped: Message[] = data.map((m: MessageRecord) => ({
+            id: m.id,
+            content: m.content,
+            isSender: m.sender_id === currentUserId,
+            timestamp: new Date(m.sent_at),
+            senderName: m.sender_id === currentUserId ? 'You' : selectedContact.name,
+            senderInitial: m.sender_id === currentUserId ? undefined : selectedContact.name.charAt(0).toUpperCase(),
+            sender_id: m.sender_id,
+            attachments: parseAttachments(m.attachments),
+          }));
+          setMessages(mapped);
+          await markMessagesAsRead(currentUserId, selectedContact.user_id, selectedShiftId || undefined);
+          const { counts, total } = await fetchUnreadCounts(currentUserId);
+          setUnreadCounts(counts);
+          setTotalUnread(total);
+        } catch (error) {
+          console.error('[MessagesPage] Failed to load messages:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      load();
+    } else if (activeConversationType === 'group' && selectedGroup) {
+      const load = async () => {
+        try {
+          setIsLoading(true);
+          const data = await fetchGroupMsgs(selectedGroup.id);
+          const mapped: Message[] = data.map((m: GroupMessage) => ({
+            id: m.id,
+            content: m.content,
+            isSender: m.sender_id === currentUserId,
+            timestamp: new Date(m.sent_at),
+            senderName: m.sender_id === currentUserId ? 'You' : (m.sender_name || 'Unknown'),
+            senderInitial: m.sender_id === currentUserId ? undefined : (m.sender_name || '?').charAt(0).toUpperCase(),
+            sender_id: m.sender_id,
+            attachments: parseAttachments(m.attachments),
+          }));
+          setMessages(mapped);
+        } catch (error) {
+          console.error('[MessagesPage] Failed to load group messages:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      load();
+    }
+  }, [selectedContact, selectedGroup, activeConversationType, currentUserId, selectedShiftId]);
 
   useEffect(() => {
-    if (!selectedContact || !currentUserId) return;
-    const unsubscribe = subscribeToMessages({
-      currentUserId,
-      otherUserId: selectedContact.user_id,
-      shiftId: selectedShiftId || undefined,
-      onNewMessage: (m) => {
-        setMessages((prev) => {
-          if (prev.some((msg) => msg.id === m.id)) return prev;
-          return [
-            ...prev,
-            {
-              id: m.id,
-              content: m.content,
-              isSender: m.sender_id === currentUserId,
-              timestamp: new Date(m.sent_at),
-              senderName: m.sender_id === currentUserId ? 'You' : selectedContact.name,
-              senderInitial: m.sender_id === currentUserId ? undefined : selectedContact.name.charAt(0).toUpperCase(),
-              sender_id: m.sender_id,
-              attachments: parseAttachments(m.attachments),
-            },
-          ];
-        });
-        if (m.sender_id !== currentUserId && autoReplyEnabled) {
-          generateAndSendAutoReply(m.content, m.sender_id, currentUserId);
+    if (!currentUserId) return;
+
+    if (activeConversationType === 'contact' && selectedContact) {
+      const unsubscribe = subscribeToMessages({
+        currentUserId,
+        otherUserId: selectedContact.user_id,
+        shiftId: selectedShiftId || undefined,
+        onNewMessage: (m) => {
+          setMessages((prev) => {
+            if (prev.some((msg) => msg.id === m.id)) return prev;
+            return [
+              ...prev,
+              {
+                id: m.id,
+                content: m.content,
+                isSender: m.sender_id === currentUserId,
+                timestamp: new Date(m.sent_at),
+                senderName: m.sender_id === currentUserId ? 'You' : selectedContact.name,
+                senderInitial: m.sender_id === currentUserId ? undefined : selectedContact.name.charAt(0).toUpperCase(),
+                sender_id: m.sender_id,
+                attachments: parseAttachments(m.attachments),
+              },
+            ];
+          });
+          if (m.sender_id !== currentUserId && autoReplyEnabled) {
+            generateAndSendAutoReply(m.content, m.sender_id, currentUserId);
+          }
+        },
+      });
+      return () => { unsubscribe(); };
+    } else if (activeConversationType === 'group' && selectedGroup) {
+      const pollInterval = setInterval(async () => {
+        try {
+          const data = await fetchGroupMsgs(selectedGroup.id);
+          const mapped: Message[] = data.map((m: GroupMessage) => ({
+            id: m.id,
+            content: m.content,
+            isSender: m.sender_id === currentUserId,
+            timestamp: new Date(m.sent_at),
+            senderName: m.sender_id === currentUserId ? 'You' : (m.sender_name || 'Unknown'),
+            senderInitial: m.sender_id === currentUserId ? undefined : (m.sender_name || '?').charAt(0).toUpperCase(),
+            sender_id: m.sender_id,
+            attachments: parseAttachments(m.attachments),
+          }));
+          setMessages((prev) => {
+            if (mapped.length !== prev.length) return mapped;
+            return prev;
+          });
+        } catch (err) {
+          console.error('[MessagesPage] Group poll error:', err);
         }
-      },
-    });
-    return () => { unsubscribe(); };
-  }, [selectedContact, currentUserId, selectedShiftId, autoReplyEnabled, generateAndSendAutoReply]);
+      }, 5000);
+      return () => clearInterval(pollInterval);
+    }
+  }, [selectedContact, selectedGroup, activeConversationType, currentUserId, selectedShiftId, autoReplyEnabled, generateAndSendAutoReply]);
 
   const handleSendMessage = async (messageText: string, attachment?: { fileUrl: string; fileName: string; fileSize: number; fileType: string }) => {
-    if (!selectedContact || !currentUserId) return;
+    if (!currentUserId) return;
     if (!messageText && !attachment) return;
     setIsSending(true);
+
     try {
-      const created = await sendMessageApi({
-        senderId: currentUserId,
-        receiverId: selectedContact.user_id,
-        content: messageText,
-        shiftId: selectedShiftId || undefined,
-        attachments: attachment || undefined,
-      });
-      if (created) {
-        setMessages((prev) => {
-          if (prev.some((msg) => msg.id === created.id)) return prev;
-          return [
-            ...prev,
-            {
-              id: created.id,
-              content: created.content,
-              isSender: true,
-              timestamp: new Date(created.sent_at),
-              sender_id: created.sender_id,
-              attachments: parseAttachments(created.attachments),
-            },
-          ];
+      if (activeConversationType === 'group' && selectedGroup) {
+        const created = await sendGroupMsgApi(
+          selectedGroup.id,
+          currentUserId,
+          'You',
+          messageText,
+          attachment || undefined,
+        );
+        if (created) {
+          setMessages((prev) => {
+            if (prev.some((msg) => msg.id === created.id)) return prev;
+            return [
+              ...prev,
+              {
+                id: created.id,
+                content: created.content,
+                isSender: true,
+                timestamp: new Date(created.sent_at),
+                sender_id: created.sender_id,
+                attachments: parseAttachments(created.attachments),
+              },
+            ];
+          });
+        }
+      } else if (selectedContact) {
+        const created = await sendMessageApi({
+          senderId: currentUserId,
+          receiverId: selectedContact.user_id,
+          content: messageText,
+          shiftId: selectedShiftId || undefined,
+          attachments: attachment || undefined,
         });
+        if (created) {
+          setMessages((prev) => {
+            if (prev.some((msg) => msg.id === created.id)) return prev;
+            return [
+              ...prev,
+              {
+                id: created.id,
+                content: created.content,
+                isSender: true,
+                timestamp: new Date(created.sent_at),
+                sender_id: created.sender_id,
+                attachments: parseAttachments(created.attachments),
+              },
+            ];
+          });
+        }
       }
     } catch (error) {
       console.error('[MessagesPage] Failed to send message:', error);
@@ -290,6 +399,16 @@ export default function MessagesPage() {
 
   const handleSelectContact = (contact: Contact) => {
     setSelectedContact(contact);
+    setSelectedGroup(null);
+    setActiveConversationType('contact');
+    setMobileView('chat');
+  };
+
+  const handleSelectGroup = (group: Group) => {
+    setSelectedGroup(group);
+    setSelectedContact(null);
+    setActiveConversationType('group');
+    setMessages([]);
     setMobileView('chat');
   };
 
@@ -319,6 +438,11 @@ export default function MessagesPage() {
           <ConversationListPanel
             onSelectContact={handleSelectContact}
             selectedContactId={selectedContact?.user_id}
+            currentUserId={currentUserId}
+            unreadCounts={unreadCounts}
+            totalUnread={totalUnread}
+            onSelectGroup={handleSelectGroup}
+            selectedGroupId={selectedGroup?.id}
           />
         </div>
 
@@ -329,37 +453,40 @@ export default function MessagesPage() {
           pb-14 md:pb-0
         `}>
           <div className="flex-shrink-0">
-            {selectedContact ? (
+            {(selectedContact || selectedGroup) ? (
               <div className="flex items-center justify-between border-b border-gray-100 h-14 bg-white">
                 <div className="flex-1 min-w-0">
                   <ChatHeader
-                    userName={selectedContact.name}
-                    isOnline={true}
+                    userName={activeConversationType === 'group' ? (selectedGroup?.name || '') : (selectedContact?.name || '')}
+                    isOnline={activeConversationType === 'contact'}
                     onBack={handleMobileBack}
-                    onShowDetails={handleShowDetails}
+                    onShowDetails={activeConversationType === 'contact' ? handleShowDetails : undefined}
+                    subtitle={activeConversationType === 'group' ? `${selectedGroup?.members?.length || 0} members` : undefined}
                   />
                 </div>
-                <div className="flex items-center gap-2 px-3 flex-shrink-0">
-                  <span className="text-xs font-medium text-gray-500 hidden sm:inline">Auto-Reply</span>
-                  <button
-                    onClick={() => setAutoReplyEnabled(!autoReplyEnabled)}
-                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                      autoReplyEnabled ? 'bg-[#1E3A5F]' : 'bg-gray-300'
-                    }`}
-                    role="switch"
-                    aria-checked={autoReplyEnabled}
-                    aria-label="Toggle auto reply"
-                  >
-                    <span
-                      className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-                        autoReplyEnabled ? 'translate-x-[18px]' : 'translate-x-[3px]'
+                {activeConversationType === 'contact' && (
+                  <div className="flex items-center gap-2 px-3 flex-shrink-0">
+                    <span className="text-xs font-medium text-gray-500 hidden sm:inline">Auto-Reply</span>
+                    <button
+                      onClick={() => setAutoReplyEnabled(!autoReplyEnabled)}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                        autoReplyEnabled ? 'bg-[#1E3A5F]' : 'bg-gray-300'
                       }`}
-                    />
-                  </button>
-                  {isAutoReplyGenerating && (
-                    <span className="text-[10px] text-purple-600 font-semibold">AI...</span>
-                  )}
-                </div>
+                      role="switch"
+                      aria-checked={autoReplyEnabled}
+                      aria-label="Toggle auto reply"
+                    >
+                      <span
+                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                          autoReplyEnabled ? 'translate-x-[18px]' : 'translate-x-[3px]'
+                        }`}
+                      />
+                    </button>
+                    {isAutoReplyGenerating && (
+                      <span className="text-[10px] text-purple-600 font-semibold">AI...</span>
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="h-14 border-b border-gray-100 flex items-center px-4">
@@ -369,7 +496,7 @@ export default function MessagesPage() {
           </div>
 
           <div className="flex-1 min-h-0 relative overflow-hidden">
-            {selectedContact ? (
+            {(selectedContact || selectedGroup) ? (
               <ChatMessages messages={messages} isLoading={isLoading} />
             ) : (
               <EmptyConversation />
@@ -377,8 +504,13 @@ export default function MessagesPage() {
           </div>
 
           <div className="flex-shrink-0">
-            {selectedContact && (
-              <MessageInputWithFAQ onSend={handleSendMessage} isLoading={isSending} showFAQIndicator={true} senderId={currentUserId} />
+            {(selectedContact || selectedGroup) && (
+              <MessageInputWithFAQ
+                onSend={handleSendMessage}
+                isLoading={isSending}
+                showFAQIndicator={activeConversationType === 'contact'}
+                senderId={currentUserId}
+              />
             )}
           </div>
         </div>
