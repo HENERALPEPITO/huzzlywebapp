@@ -1,12 +1,22 @@
 import { NextResponse } from 'next/server';
 import { Pool } from 'pg';
 
+export const runtime = 'nodejs';
+
 function getConnectionString() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
     throw new Error('DATABASE_URL is not set');
   }
   return connectionString;
+}
+
+function getDbHostname(connectionString: string) {
+  try {
+    return new URL(connectionString).hostname;
+  } catch {
+    return 'unknown';
+  }
 }
 
 function isSelfSignedCertError(error: any) {
@@ -31,11 +41,16 @@ function stripSslMode(connectionString: string) {
 
 async function withPgPool<T>(fn: (pool: Pool) => Promise<T>): Promise<T> {
   const connectionString = getConnectionString();
+  const dbHost = getDbHostname(connectionString);
   let pool = new Pool({ connectionString });
 
   try {
     return await fn(pool);
   } catch (error: any) {
+    // Helps diagnose Vercel DNS/egress issues without logging secrets.
+    if (error?.code === 'ENOTFOUND') {
+      console.error('DB hostname could not be resolved:', dbHost);
+    }
     if (!isSelfSignedCertError(error)) throw error;
 
     // Retry with relaxed TLS verification for local/dev environments.
