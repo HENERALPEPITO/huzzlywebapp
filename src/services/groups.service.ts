@@ -20,7 +20,11 @@ async function ensureTables() {
     if (res.ok) {
       tablesInitialized = true;
     } else {
-      console.error('Failed to initialize group tables:', await res.text());
+      const bodyText = await res.text();
+      console.error(
+        `Failed to initialize group tables (HTTP ${res.status}):`,
+        bodyText
+      );
     }
   } catch (err) {
     console.error('Failed to initialize group tables:', err);
@@ -31,8 +35,13 @@ export async function fetchGroups(userId: string): Promise<Group[]> {
   await ensureTables();
   const res = await fetch(`/api/groups?userId=${encodeURIComponent(userId)}`);
   if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.error || 'Failed to fetch groups');
+    const bodyText = await res.text();
+    try {
+      const err = JSON.parse(bodyText);
+      throw new Error(err?.error || 'Failed to fetch groups');
+    } catch {
+      throw new Error(bodyText || 'Failed to fetch groups');
+    }
   }
   return res.json();
 }
