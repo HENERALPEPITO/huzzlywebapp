@@ -21,7 +21,8 @@ export default function AuthScreen() {
 
   // Check if session exists on load
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then((result: any) => {
+      const session = result?.data?.session;
       if (session) {
         router.push('/messages');
       } else {

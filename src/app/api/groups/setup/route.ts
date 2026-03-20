@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import pg from 'pg';
-
-const { Pool } = pg;
+import { Pool } from 'pg';
 
 export async function POST() {
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });

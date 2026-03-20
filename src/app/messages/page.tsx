@@ -509,7 +509,7 @@ export default function MessagesPage() {
                 onSend={handleSendMessage}
                 isLoading={isSending}
                 showFAQIndicator={activeConversationType === 'contact'}
-                senderId={currentUserId}
+                senderId={currentUserId ?? undefined}
               />
             )}
           </div>

@@ -136,7 +136,7 @@ export function subscribeToMessages({
         schema: 'public',
         table: 'messages',
       },
-      (payload) => {
+      (payload: any) => {
         const message = payload.new as MessageRecord;
 
         const isBetweenUsers =
