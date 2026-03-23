@@ -13,17 +13,7 @@ type AuthStep = 'form' | 'confirm-phone' | 'otp' | 'success';
 
 const HuzlyLogo = () => (
   <div className="flex flex-col items-center">
-    <div className="w-10 h-10 mb-1">
-      <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="20" height="14" rx="3" fill="#1E3A5F" />
-        <rect y="17" width="20" height="14" rx="3" fill="#2A6FC8" />
-        <rect y="34" width="20" height="14" rx="3" fill="#1E3A5F" />
-        <rect x="24" width="24" height="14" rx="3" fill="#2A6FC8" />
-      </svg>
-    </div>
-    <h1 className="text-2xl font-bold text-[#1E3A5F]">
-      <span className="text-[#2A6FC8]">H</span>uzl<span className="text-[#2A6FC8]">y</span>
-    </h1>
+    <img src="/images/huzly-logo.png" alt="Huzly" className="h-16 w-auto object-contain" />
   </div>
 );
 
@@ -914,14 +904,7 @@ export default function HomePage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="flex flex-col items-center gap-3 animate-pulse">
-          <div className="w-12 h-12">
-            <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect width="20" height="14" rx="3" fill="#1E3A5F" />
-              <rect y="17" width="20" height="14" rx="3" fill="#2A6FC8" />
-              <rect y="34" width="20" height="14" rx="3" fill="#1E3A5F" />
-              <rect x="24" width="24" height="14" rx="3" fill="#2A6FC8" />
-            </svg>
-          </div>
+          <img src="/images/huzly-logo.png" alt="Huzly" className="h-14 w-auto object-contain" />
         </div>
       </div>
     );

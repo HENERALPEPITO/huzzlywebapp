@@ -33,17 +33,7 @@ function LoadingScreen({ onNext }: { onNext: () => void }) {
       </div>
 
       <div className="flex flex-col items-center z-10">
-        <div className="w-16 h-16 mb-4">
-          <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="20" height="14" rx="3" fill="#1E3A5F" />
-            <rect y="17" width="20" height="14" rx="3" fill="#2A6FC8" />
-            <rect y="34" width="20" height="14" rx="3" fill="#1E3A5F" />
-            <rect x="24" width="24" height="14" rx="3" fill="#2A6FC8" />
-          </svg>
-        </div>
-        <h1 className="text-4xl font-bold text-[#1E3A5F] tracking-tight">
-          <span className="text-[#2A6FC8]">H</span>uzl<span className="text-[#2A6FC8]">y</span>
-        </h1>
+        <img src="/images/huzly-logo.png" alt="Huzly" className="h-20 w-auto object-contain" />
       </div>
 
       <div className="absolute bottom-16 flex gap-1.5">
