@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { signInClient, signUpClient } from '@/lib/authService';
 import OnboardingFlow from '@/components/OnboardingFlow';
+import { countries, type Country } from '@/lib/countries';
 
 type AuthMode = 'signup' | 'signin';
 type InputMethod = 'email' | 'phone';
@@ -46,6 +47,86 @@ const MethodTabs = ({ method, onChange }: { method: InputMethod; onChange: (m: I
     </button>
   </div>
 );
+
+function CountryCodePicker({ selected, onChange }: {
+  selected: Country;
+  onChange: (c: Country) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open && searchRef.current) searchRef.current.focus();
+  }, [open]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSearch('');
+      }
+    };
+    if (open) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const filtered = countries.filter((c) => {
+    const q = search.toLowerCase();
+    return c.name.toLowerCase().includes(q) || c.dial.includes(q) || c.code.toLowerCase().includes(q);
+  });
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => { setOpen(!open); setSearch(''); }}
+        className="flex items-center gap-1.5 px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 bg-gray-50 min-w-[90px] hover:bg-gray-100 transition-colors"
+      >
+        <span className="text-base">{selected.flag}</span>
+        <span>{selected.dial}</span>
+        <svg className={`w-3 h-3 text-gray-400 ml-auto transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
+          <div className="p-2 border-b border-gray-100">
+            <input
+              ref={searchRef}
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search country..."
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#2A6FC8] focus:border-transparent"
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto">
+            {filtered.length === 0 && (
+              <div className="px-3 py-3 text-xs text-gray-400 text-center">No countries found</div>
+            )}
+            {filtered.map((c) => (
+              <button
+                key={c.code}
+                type="button"
+                onClick={() => { onChange(c); setOpen(false); setSearch(''); }}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-blue-50 transition-colors text-left ${
+                  c.code === selected.code ? 'bg-blue-50 text-[#2A6FC8]' : 'text-gray-700'
+                }`}
+              >
+                <span className="text-base">{c.flag}</span>
+                <span className="flex-1 truncate">{c.name}</span>
+                <span className="text-gray-400 text-xs">{c.dial}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function OtpInput({ length, value, onChange, error }: {
   length: number;
@@ -245,7 +326,7 @@ function AuthScreen({ onNavigateToMessages }: { onNavigateToMessages: () => void
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [phone, setPhone] = useState('');
-  const [countryCode] = useState('+1');
+  const [selectedCountry, setSelectedCountry] = useState<Country>(countries[0]);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
@@ -348,7 +429,7 @@ function AuthScreen({ onNavigateToMessages }: { onNavigateToMessages: () => void
       return;
     }
 
-    const fullPhone = `${countryCode}${phone.replace(/\D/g, '')}`;
+    const fullPhone = `${selectedCountry.dial}${phone.replace(/\D/g, '')}`;
     setPendingIdentifier(fullPhone);
     setStep('confirm-phone');
   };
@@ -556,7 +637,7 @@ function AuthScreen({ onNavigateToMessages }: { onNavigateToMessages: () => void
             if (password.length < 6) { setError('Password must be at least 6 characters'); return; }
             if (!agreedToTerms) { setError('Please agree to the Terms & Conditions'); return; }
             setError(null);
-            const fullPhone = `${countryCode}${phone.replace(/\D/g, '')}`;
+            const fullPhone = `${selectedCountry.dial}${phone.replace(/\D/g, '')}`;
             setPendingIdentifier(fullPhone);
             setStep('confirm-phone');
           }}>
@@ -572,10 +653,7 @@ function AuthScreen({ onNavigateToMessages }: { onNavigateToMessages: () => void
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Mobile Number</label>
               <div className="flex gap-2">
-                <div className="flex items-center gap-1.5 px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 bg-gray-50 min-w-[80px]">
-                  <span className="text-base">🇺🇸</span>
-                  <span>{countryCode}</span>
-                </div>
+                <CountryCodePicker selected={selectedCountry} onChange={setSelectedCountry} />
                 <input
                   type="tel"
                   value={phone}
@@ -701,10 +779,7 @@ function AuthScreen({ onNavigateToMessages }: { onNavigateToMessages: () => void
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Mobile Number</label>
               <div className="flex gap-2">
-                <div className="flex items-center gap-1.5 px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 bg-gray-50 min-w-[80px]">
-                  <span className="text-base">🇺🇸</span>
-                  <span>{countryCode}</span>
-                </div>
+                <CountryCodePicker selected={selectedCountry} onChange={setSelectedCountry} />
                 <input
                   type="tel"
                   value={phone}
