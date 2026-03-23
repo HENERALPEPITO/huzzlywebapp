@@ -15,9 +15,14 @@ A Next.js 16 web application migrated from Vercel to Replit.
   - Shown on first visit (localStorage `huzly_onboarding_seen` flag)
   - Loading screen auto-advances after 2.5s; splash screens have Continue/Skip buttons
   - Component: `src/components/OnboardingFlow.tsx`
-- **Auth screen**: Redesigned with Huzly branding
-  - Sign Up tab: Choose Worker or Employer role → role-specific form (Employer requires company name)
-  - Sign In tab: Direct email/password form (no role selection needed)
+- **Auth screen**: Multi-step flow matching Figma wireframes
+  - Email/Phone tab toggle on both Sign Up and Sign In
+  - **Sign Up (Email)**: Full Name, Email, Create Password, Verify Password, Terms checkbox → OTP → Success
+  - **Sign Up (Phone)**: Full Name, Phone (country code), Password, Terms → Confirm Phone → OTP → Success
+  - **Sign In (Email)**: Email, Password, Remember Me, Forgot Password → Success
+  - **Sign In (Phone)**: Phone (country code), Remember Me → Confirm Phone → OTP → Success
+  - OTP screen: 6-digit input with 30s countdown + resend, Cancel/Verify buttons
+  - Success screen: checkmark + "Verification complete", redirects to messages or login
   - Social login buttons (Facebook, Google, Apple) - visual only
   - `signUpClient` in `authService.ts` supports `role` param; Workers skip `clients` table insert
 - **Logo**: SVG inline logo (navy/blue block pattern) used across all screens
