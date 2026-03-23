@@ -22,7 +22,8 @@ export interface SignUpData {
   password?: string;
   first_name: string;
   last_name: string;
-  company_name: string;
+  company_name?: string;
+  role?: 'worker' | 'employer';
   city?: string;
   state?: string;
 }
@@ -42,16 +43,19 @@ export async function signUpClient({
   first_name,
   last_name,
   company_name,
+  role = 'worker',
   city = '',
   state = ''
 }: SignUpData) {
-  // 1. Basic validation
-  if (!email || !password || !first_name || !last_name || !company_name) {
+  if (!email || !password || !first_name || !last_name) {
     return { data: null, error: new Error('Missing required fields') };
   }
 
+  if (role === 'employer' && !company_name) {
+    return { data: null, error: new Error('Company name is required for employers') };
+  }
+
   try {
-    // 2. Create Supabase Auth User
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -68,41 +72,39 @@ export async function signUpClient({
     const user = authData?.user;
     if (!user) throw new Error('Failed to create auth user');
 
-    // 3. Insert Record Into `users` Table
-    // Use upsert in case there are database triggers that auto-create the row
+    const userRole = role === 'employer' ? 'Client' : 'Worker';
+
     const { error: userError } = await supabase
       .from('users')
       .upsert({
-        id: user.id, // references auth.users.id
+        id: user.id,
         email: email,
         first_name: first_name,
         last_name: last_name,
-        // Use capitalized "Client" to match your user_role enum
-        role: 'Client',
+        role: userRole,
       });
 
     if (userError) throw userError;
 
-    // 4. Automatically Insert Into `clients` Table
-    const clientPayload: any = {
-      user_id: user.id, // references users.id
-      company_name: company_name,
-    };
+    if (role === 'employer' && company_name) {
+      const clientPayload: any = {
+        user_id: user.id,
+        company_name: company_name,
+      };
 
-    // Only add city and state if they are non-empty to avoid enum errors for blanks
-    if (city) clientPayload.city = city;
-    if (state) clientPayload.state = state;
+      if (city) clientPayload.city = city;
+      if (state) clientPayload.state = state;
 
-    const { error: clientError } = await supabase
-      .from('clients')
-      .insert(clientPayload);
+      const { error: clientError } = await supabase
+        .from('clients')
+        .insert(clientPayload);
 
-    if (clientError) {
-      console.error('Client insert error:', clientError.message || clientError);
-      throw clientError;
+      if (clientError) {
+        console.error('Client insert error:', clientError.message || clientError);
+        throw clientError;
+      }
     }
 
-    // Optional: Fetch the created profile data if needed
     const { data: finalUser } = await supabase
       .from('users')
       .select('*, clients(*)')

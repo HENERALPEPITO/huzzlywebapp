@@ -10,6 +10,18 @@ A Next.js 16 web application migrated from Vercel to Replit.
 - **AI**: xAI (Grok) via XAI_API_KEY
 - **Package manager**: npm
 
+## Onboarding & Auth Flow
+- **Onboarding screens**: Loading → Apply as Worker → Join as Employer → Welcome
+  - Shown on first visit (localStorage `huzly_onboarding_seen` flag)
+  - Loading screen auto-advances after 2.5s; splash screens have Continue/Skip buttons
+  - Component: `src/components/OnboardingFlow.tsx`
+- **Auth screen**: Redesigned with Huzly branding
+  - Sign Up tab: Choose Worker or Employer role → role-specific form (Employer requires company name)
+  - Sign In tab: Direct email/password form (no role selection needed)
+  - Social login buttons (Facebook, Google, Apple) - visual only
+  - `signUpClient` in `authService.ts` supports `role` param; Workers skip `clients` table insert
+- **Logo**: SVG inline logo (navy/blue block pattern) used across all screens
+
 ## Project Structure
 - `src/app/` — Next.js App Router pages and API routes
 - `src/app/messages/` — Messaging page (responsive, mobile-first)
