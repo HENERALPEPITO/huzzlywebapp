@@ -13,7 +13,7 @@ type AuthStep = 'form' | 'confirm-phone' | 'otp' | 'success';
 
 const HuzlyLogo = () => (
   <div className="flex flex-col items-center">
-    <img src="/images/huzly-logo.png" alt="Huzly" className="h-16 w-auto object-contain" />
+    <img src="/images/logo.png" alt="Huzly" className="h-16 w-auto object-contain" />
   </div>
 );
 
@@ -904,7 +904,7 @@ export default function HomePage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="flex flex-col items-center gap-3 animate-pulse">
-          <img src="/images/huzly-logo.png" alt="Huzly" className="h-14 w-auto object-contain" />
+          <img src="/images/logo.png" alt="Huzly" className="h-14 w-auto object-contain" />
         </div>
       </div>
     );
