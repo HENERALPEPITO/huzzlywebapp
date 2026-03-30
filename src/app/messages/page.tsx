@@ -11,7 +11,6 @@ import ConversationListPanel from '@/components/ConversationListPanel';
 import ContactDetails from '@/components/ContactDetails';
 import { Contact } from '@/lib/contactsService';
 import { supabase } from '@/lib/supabaseClient';
-import { useAutoReply } from '@/hooks/useAutoReply';
 import {
   fetchMessages,
   sendMessage as sendMessageApi,
@@ -125,17 +124,11 @@ export default function MessagesPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
-  const [autoReplyEnabled, setAutoReplyEnabled] = useState(true);
   const [mobileView, setMobileView] = useState<MobileView>('contacts');
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [totalUnread, setTotalUnread] = useState(0);
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [activeConversationType, setActiveConversationType] = useState<'contact' | 'group'>('contact');
-
-  const { isGenerating: isAutoReplyGenerating, generateAndSendAutoReply } = useAutoReply({
-    enabled: autoReplyEnabled,
-    useFAQ: true,
-  });
 
   const { registerActiveConversation } = useMessageNotifications();
 
@@ -329,9 +322,6 @@ export default function MessagesPage() {
               },
             ];
           });
-          if (m.sender_id !== currentUserId && autoReplyEnabled) {
-            generateAndSendAutoReply(m.content, m.sender_id, currentUserId);
-          }
         },
       });
       return () => { unsubscribe(); };
@@ -359,7 +349,7 @@ export default function MessagesPage() {
       }, 5000);
       return () => clearInterval(pollInterval);
     }
-  }, [selectedContact, selectedGroup, activeConversationType, currentUserId, selectedShiftId, autoReplyEnabled, generateAndSendAutoReply]);
+  }, [selectedContact, selectedGroup, activeConversationType, currentUserId, selectedShiftId]);
 
   const handleSendMessage = async (messageText: string, attachment?: { fileUrl: string; fileName: string; fileSize: number; fileType: string }) => {
     if (!currentUserId) return;
@@ -493,39 +483,14 @@ export default function MessagesPage() {
         `}>
           <div className="flex-shrink-0">
             {(selectedContact || selectedGroup) ? (
-              <div className="flex items-center justify-between border-b border-gray-100 h-14 bg-white">
-                <div className="flex-1 min-w-0">
-                  <ChatHeader
-                    userName={activeConversationType === 'group' ? (selectedGroup?.name || '') : (selectedContact?.name || '')}
-                    isOnline={activeConversationType === 'contact'}
-                    onBack={handleMobileBack}
-                    onShowDetails={activeConversationType === 'contact' ? handleShowDetails : undefined}
-                    subtitle={activeConversationType === 'group' ? `${selectedGroup?.members?.length || 0} members` : undefined}
-                  />
-                </div>
-                {activeConversationType === 'contact' && (
-                  <div className="flex items-center gap-2 px-3 flex-shrink-0">
-                    <span className="text-xs font-medium text-gray-500 hidden sm:inline">Auto-Reply</span>
-                    <button
-                      onClick={() => setAutoReplyEnabled(!autoReplyEnabled)}
-                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                        autoReplyEnabled ? 'bg-[#1E3A5F]' : 'bg-gray-300'
-                      }`}
-                      role="switch"
-                      aria-checked={autoReplyEnabled}
-                      aria-label="Toggle auto reply"
-                    >
-                      <span
-                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-                          autoReplyEnabled ? 'translate-x-[18px]' : 'translate-x-[3px]'
-                        }`}
-                      />
-                    </button>
-                    {isAutoReplyGenerating && (
-                      <span className="text-[10px] text-purple-600 font-semibold">AI...</span>
-                    )}
-                  </div>
-                )}
+              <div className="border-b border-gray-100 h-14 bg-white">
+                <ChatHeader
+                  userName={activeConversationType === 'group' ? (selectedGroup?.name || '') : (selectedContact?.name || '')}
+                  isOnline={activeConversationType === 'contact'}
+                  onBack={handleMobileBack}
+                  onShowDetails={activeConversationType === 'contact' ? handleShowDetails : undefined}
+                  subtitle={activeConversationType === 'group' ? `${selectedGroup?.members?.length || 0} members` : undefined}
+                />
               </div>
             ) : (
               <div className="h-14 border-b border-gray-100 flex items-center px-4">
