@@ -2,6 +2,7 @@
 
 import { Search, LayoutGrid, Settings, Calendar, ClipboardList, Bell, LogOut, MessageSquare } from 'lucide-react';
 import { useState } from 'react';
+import { useMessageNotifications } from '@/context/MessageNotificationsContext';
 
 interface LeftSidebarProps {
   onLogout?: () => void;
@@ -25,6 +26,12 @@ const mobileNavItems = [
 
 export default function LeftSidebar({ onLogout }: LeftSidebarProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const { openNotificationSettings } = useMessageNotifications();
+
+  const openNotifSettings = (index: number) => {
+    setActiveIndex(index);
+    openNotificationSettings();
+  };
 
   return (
     <>
@@ -53,7 +60,13 @@ export default function LeftSidebar({ onLogout }: LeftSidebarProps) {
             return (
               <button
                 key={i}
-                onClick={() => setActiveIndex(i)}
+                onClick={() => {
+                  if (item.label === 'Settings' || item.label === 'Notifications') {
+                    openNotifSettings(i);
+                  } else {
+                    setActiveIndex(i);
+                  }
+                }}
                 className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
                   isActive
                     ? 'bg-white/15 text-white'
@@ -90,6 +103,12 @@ export default function LeftSidebar({ onLogout }: LeftSidebarProps) {
           return (
             <button
               key={i}
+              type="button"
+              onClick={() => {
+                if (item.label === 'Notifications' || item.label === 'Settings') {
+                  openNotifSettings(i);
+                }
+              }}
               className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-lg transition-colors ${
                 isActive ? 'text-white' : 'text-white/50'
               }`}

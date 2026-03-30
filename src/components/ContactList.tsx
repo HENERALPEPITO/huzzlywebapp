@@ -99,7 +99,13 @@ export default function ContactList({ onSelectContact, selectedContactId, search
             </div>
 
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-800 truncate">{contact.name}</p>
+              <p
+                className={`text-sm truncate ${
+                  unread > 0 ? 'font-bold text-gray-900' : 'font-semibold text-gray-800'
+                }`}
+              >
+                {contact.name}
+              </p>
               <p className="text-xs text-gray-400 truncate">Application for this role...</p>
             </div>
 

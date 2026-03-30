@@ -157,6 +157,37 @@ export function subscribeToMessages({
   };
 }
 
+/** Subscribes to all new rows in `messages` where the current user is the receiver (incoming DMs). */
+export function subscribeToIncomingDirectMessages(
+  currentUserId: string,
+  onIncoming: (message: MessageRecord) => void
+): () => void {
+  if (!currentUserId) return () => {};
+
+  const channel = supabase
+    .channel(`incoming-dm-${currentUserId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+      },
+      (payload: { new?: MessageRecord }) => {
+        const message = payload.new;
+        if (!message?.id) return;
+        if (message.receiver_id !== currentUserId) return;
+        if (message.sender_id === currentUserId) return;
+        onIncoming(message);
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
 export async function markMessagesAsRead(
   currentUserId: string,
   otherUserId: string,

@@ -26,6 +26,7 @@ import {
   sendGroupMessage as sendGroupMsgApi,
   GroupMessage,
 } from '@/services/groups.service';
+import { useMessageNotifications } from '@/context/MessageNotificationsContext';
 
 interface Attachment {
   url: string;
@@ -135,6 +136,44 @@ export default function MessagesPage() {
     enabled: autoReplyEnabled,
     useFAQ: true,
   });
+
+  const { registerActiveConversation } = useMessageNotifications();
+
+  useEffect(() => {
+    if (!currentUserId) return;
+    registerActiveConversation({
+      type:
+        activeConversationType === 'contact' && selectedContact
+          ? 'contact'
+          : activeConversationType === 'group' && selectedGroup
+            ? 'group'
+            : 'none',
+      contactUserId: selectedContact?.user_id ?? null,
+      shiftId: selectedShiftId,
+      groupId: selectedGroup?.id ?? null,
+    });
+  }, [
+    currentUserId,
+    activeConversationType,
+    selectedContact,
+    selectedGroup,
+    selectedShiftId,
+    registerActiveConversation,
+  ]);
+
+  useEffect(() => {
+    if (!currentUserId) return;
+    const onRefresh = () => {
+      void fetchUnreadCounts(currentUserId)
+        .then(({ counts, total }) => {
+          setUnreadCounts(counts);
+          setTotalUnread(total);
+        })
+        .catch(() => {});
+    };
+    window.addEventListener('huzzly-unread-refresh', onRefresh);
+    return () => window.removeEventListener('huzzly-unread-refresh', onRefresh);
+  }, [currentUserId]);
 
   useEffect(() => {
     let isMounted = true;

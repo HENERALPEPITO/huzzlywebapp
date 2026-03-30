@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
-import { signInClient, signUpClient } from '@/lib/authService';
+import { signInClient, signUpClient, completeSignUpProfile } from '@/lib/authService';
 import OnboardingFlow from '@/components/OnboardingFlow';
 import { countries, type Country } from '@/lib/countries';
 
@@ -375,6 +375,7 @@ function AuthScreen({ onNavigateToMessages }: { onNavigateToMessages: () => void
         first_name: firstName,
         last_name: lastName,
         role: 'worker',
+        deferProfileUntilVerified: true,
       });
       if (signUpError) throw signUpError;
 
@@ -458,12 +459,30 @@ function AuthScreen({ onNavigateToMessages }: { onNavigateToMessages: () => void
         });
       }
     } else {
-      const { error } = await supabase.auth.verifyOtp({
+      const { data: verifyData, error } = await supabase.auth.verifyOtp({
         email: pendingIdentifier,
         token: code,
         type: mode === 'signup' ? 'signup' : 'email',
       });
       if (error) throw error;
+
+      if (mode === 'signup') {
+        const nameParts = fullName.trim().split(/\s+/);
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+        const userId = verifyData?.user?.id;
+        if (!userId) {
+          throw new Error('Verification succeeded but user account was not found');
+        }
+        const { error: profileError } = await completeSignUpProfile({
+          userId,
+          email: pendingIdentifier.trim(),
+          first_name: firstName,
+          last_name: lastName,
+          role: 'worker',
+        });
+        if (profileError) throw profileError;
+      }
     }
     setStep('success');
   };

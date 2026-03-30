@@ -26,6 +26,19 @@ export interface SignUpData {
   role?: 'worker' | 'employer';
   city?: string;
   state?: string;
+  /** If true, only creates the Supabase auth user; call `completeSignUpProfile` after OTP verification. */
+  deferProfileUntilVerified?: boolean;
+}
+
+export interface CompleteSignUpProfileData {
+  userId: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role?: 'worker' | 'employer';
+  company_name?: string;
+  city?: string;
+  state?: string;
 }
 
 export interface SignInData {
@@ -33,9 +46,112 @@ export interface SignInData {
   password?: string;
 }
 
+async function insertSignUpProfile({
+  userId,
+  emailNorm,
+  firstNorm,
+  lastNorm,
+  role,
+  company_name,
+  city,
+  state,
+}: {
+  userId: string;
+  emailNorm: string;
+  firstNorm: string;
+  lastNorm: string;
+  role: 'worker' | 'employer';
+  company_name?: string;
+  city: string;
+  state: string;
+}) {
+  const userRole = role === 'employer' ? 'Client' : 'Worker';
+
+  const { error: userError } = await supabase
+    .from('users')
+    .upsert({
+      id: userId,
+      email: emailNorm,
+      first_name: firstNorm,
+      last_name: lastNorm,
+      role: userRole,
+    });
+
+  if (userError) throw userError;
+
+  if (role === 'employer' && company_name) {
+    const clientPayload: Record<string, string> = {
+      user_id: userId,
+      company_name: company_name,
+    };
+
+    if (city) clientPayload.city = city;
+    if (state) clientPayload.state = state;
+
+    const { error: clientError } = await supabase.from('clients').insert(clientPayload);
+
+    if (clientError) {
+      console.error('Client insert error:', clientError.message || clientError);
+      throw clientError;
+    }
+  }
+
+  const { data: finalUser, error: selectError } = await supabase
+    .from('users')
+    .select('*, clients(*)')
+    .eq('id', userId)
+    .single();
+
+  if (selectError) throw selectError;
+  return finalUser;
+}
+
 /**
- * Signs up a new user, inserts their profile into the `users` table,
- * and then creates a `clients` record.
+ * Inserts `users` (and employer `clients`) after email/phone OTP verification.
+ */
+export async function completeSignUpProfile({
+  userId,
+  email,
+  first_name,
+  last_name,
+  role = 'worker',
+  company_name,
+  city = '',
+  state = '',
+}: CompleteSignUpProfileData) {
+  const emailNorm = (email ?? '').trim();
+  const firstNorm = (first_name ?? '').trim();
+  const lastNorm = (last_name ?? '').trim();
+
+  if (!userId || !emailNorm || !firstNorm) {
+    return { data: null, error: new Error('Missing required fields') };
+  }
+
+  if (role === 'employer' && !company_name) {
+    return { data: null, error: new Error('Company name is required for employers') };
+  }
+
+  try {
+    const finalUser = await insertSignUpProfile({
+      userId,
+      emailNorm,
+      firstNorm,
+      lastNorm,
+      role,
+      company_name,
+      city,
+      state,
+    });
+    return { data: finalUser, error: null };
+  } catch (error: any) {
+    console.error('Complete sign-up profile error:', error.message);
+    return { data: null, error };
+  }
+}
+
+/**
+ * Signs up a new user. By default inserts `users` (+ `clients` for employers).
+ * With `deferProfileUntilVerified`, only creates the auth user; call `completeSignUpProfile` after OTP.
  */
 export async function signUpClient({
   email,
@@ -45,9 +161,15 @@ export async function signUpClient({
   company_name,
   role = 'worker',
   city = '',
-  state = ''
+  state = '',
+  deferProfileUntilVerified = false,
 }: SignUpData) {
-  if (!email || !password || !first_name || !last_name) {
+  const emailNorm = (email ?? '').trim();
+  const firstNorm = (first_name ?? '').trim();
+  const lastNorm = (last_name ?? '').trim();
+
+  // Only first name is required; single-word "Full name" in the UI yields empty last_name.
+  if (!emailNorm || !password || !firstNorm) {
     return { data: null, error: new Error('Missing required fields') };
   }
 
@@ -57,12 +179,12 @@ export async function signUpClient({
 
   try {
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
+      email: emailNorm,
       password,
       options: {
         data: {
-          first_name,
-          last_name,
+          first_name: firstNorm,
+          last_name: lastNorm,
         }
       }
     });
@@ -72,44 +194,20 @@ export async function signUpClient({
     const user = authData?.user;
     if (!user) throw new Error('Failed to create auth user');
 
-    const userRole = role === 'employer' ? 'Client' : 'Worker';
-
-    const { error: userError } = await supabase
-      .from('users')
-      .upsert({
-        id: user.id,
-        email: email,
-        first_name: first_name,
-        last_name: last_name,
-        role: userRole,
-      });
-
-    if (userError) throw userError;
-
-    if (role === 'employer' && company_name) {
-      const clientPayload: any = {
-        user_id: user.id,
-        company_name: company_name,
-      };
-
-      if (city) clientPayload.city = city;
-      if (state) clientPayload.state = state;
-
-      const { error: clientError } = await supabase
-        .from('clients')
-        .insert(clientPayload);
-
-      if (clientError) {
-        console.error('Client insert error:', clientError.message || clientError);
-        throw clientError;
-      }
+    if (deferProfileUntilVerified) {
+      return { data: null, error: null };
     }
 
-    const { data: finalUser } = await supabase
-      .from('users')
-      .select('*, clients(*)')
-      .eq('id', user.id)
-      .single();
+    const finalUser = await insertSignUpProfile({
+      userId: user.id,
+      emailNorm,
+      firstNorm,
+      lastNorm,
+      role,
+      company_name,
+      city,
+      state,
+    });
 
     return { data: finalUser, error: null };
 

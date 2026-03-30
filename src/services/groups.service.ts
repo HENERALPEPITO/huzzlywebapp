@@ -1,3 +1,5 @@
+import { supabase } from '@/lib/supabaseClient';
+
 export interface GroupMember {
   user_id: string;
   user_name: string;
@@ -119,4 +121,40 @@ export async function sendGroupMessage(
     throw new Error(err.error || 'Failed to send group message');
   }
   return res.json();
+}
+
+export interface GroupMessageRow {
+  id: string;
+  group_id: string;
+  sender_id: string;
+  sender_name: string;
+  content: string;
+  sent_at: string;
+  attachments?: unknown;
+}
+
+/** Supabase Realtime on `group_messages` (requires replication on that table). No-op with noop client. */
+export function subscribeToGroupMessageInserts(
+  channelSuffix: string,
+  onInsert: (row: GroupMessageRow) => void
+): () => void {
+  const channel = supabase
+    .channel(`group-msg-${channelSuffix}`.slice(0, 60))
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'group_messages',
+      },
+      (payload: { new?: GroupMessageRow }) => {
+        const row = payload.new;
+        if (row?.id) onInsert(row);
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }
