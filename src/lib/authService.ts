@@ -75,6 +75,7 @@ async function insertSignUpProfile({
       first_name: firstNorm,
       last_name: lastNorm,
       role: userRole,
+      onboarding_completed: false,
     });
 
   if (userError) throw userError;
@@ -173,20 +174,29 @@ export async function signUpClient({
     return { data: null, error: new Error('Missing required fields') };
   }
 
-  if (role === 'employer' && !company_name) {
+  // Company is collected in employer onboarding after OTP — only require when inserting profile immediately.
+  if (role === 'employer' && !company_name?.trim() && !deferProfileUntilVerified) {
     return { data: null, error: new Error('Company name is required for employers') };
   }
 
+  const siteOrigin =
+    typeof window !== 'undefined'
+      ? window.location.origin
+      : (process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/$/, '') || '';
+
   try {
+    // Auth emails (OTP / confirm) are sent by Supabase using your configured provider (e.g. Resend SMTP).
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: emailNorm,
       password,
       options: {
+        emailRedirectTo: siteOrigin ? `${siteOrigin}/` : undefined,
         data: {
           first_name: firstNorm,
           last_name: lastNorm,
-        }
-      }
+          ...(role === 'employer' ? { signup_role: 'employer' } : {}),
+        },
+      },
     });
 
     if (authError) throw authError;
@@ -215,6 +225,42 @@ export async function signUpClient({
     console.error('Sign Up Error:', error.message);
     return { data: null, error };
   }
+}
+
+const siteOriginForAuthEmail = () =>
+  typeof window !== 'undefined'
+    ? window.location.origin
+    : (process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/$/, '') || '';
+
+/**
+ * Sends an email OTP / magic link via Supabase Auth (Resend SMTP, etc.).
+ * Use this for the “enter 6-digit code” UI — `signUp()` usually emails a **link**, not a code.
+ * Dashboard: Authentication → Providers → Email → enable **Email OTP** (or use a template with `{{ .Token }}`).
+ */
+export function requestEmailSignupOtp({
+  email,
+  firstName,
+  lastName,
+  signupRole,
+}: {
+  email: string;
+  firstName: string;
+  lastName: string;
+  signupRole: 'worker' | 'employer';
+}) {
+  const origin = siteOriginForAuthEmail();
+  return supabase.auth.signInWithOtp({
+    email: email.trim(),
+    options: {
+      shouldCreateUser: true,
+      emailRedirectTo: origin ? `${origin}/` : undefined,
+      data: {
+        first_name: firstName,
+        last_name: lastName,
+        signup_role: signupRole,
+      },
+    },
+  });
 }
 
 /**

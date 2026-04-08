@@ -3,13 +3,16 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
-import { signInClient, signUpClient, completeSignUpProfile } from '@/lib/authService';
+import { signInClient, completeSignUpProfile, requestEmailSignupOtp } from '@/lib/authService';
 import OnboardingFlow from '@/components/OnboardingFlow';
 import { countries, type Country } from '@/lib/countries';
+import { EMPLOYER_ONBOARDING_PREFILL_KEY } from '@/lib/employerSignupConstants';
+import { isOnboardingCompleted } from '@/lib/onboardingService';
 
 type AuthMode = 'signup' | 'signin';
 type InputMethod = 'email' | 'phone';
 type AuthStep = 'form' | 'confirm-phone' | 'otp' | 'success';
+type SignUpRole = 'worker' | 'employer';
 
 const HuzlyLogo = () => (
   <div className="flex flex-col items-center">
@@ -34,6 +37,29 @@ const MethodTabs = ({ method, onChange }: { method: InputMethod; onChange: (m: I
       }`}
     >
       Phone
+    </button>
+  </div>
+);
+
+const SignUpRoleTabs = ({ role, onChange }: { role: SignUpRole; onChange: (r: SignUpRole) => void }) => (
+  <div className="flex mx-auto w-full max-w-xs bg-gray-100 rounded-lg p-0.5">
+    <button
+      type="button"
+      onClick={() => onChange('worker')}
+      className={`flex-1 py-2 rounded-md text-xs font-semibold transition-all ${
+        role === 'worker' ? 'bg-white text-[#1E3A5F] shadow-sm' : 'text-gray-400'
+      }`}
+    >
+      Worker
+    </button>
+    <button
+      type="button"
+      onClick={() => onChange('employer')}
+      className={`flex-1 py-2 rounded-md text-xs font-semibold transition-all ${
+        role === 'employer' ? 'bg-white text-[#1E3A5F] shadow-sm' : 'text-gray-400'
+      }`}
+    >
+      Employer
     </button>
   </div>
 );
@@ -214,11 +240,19 @@ function ConfirmPhoneScreen({ phone, onConfirm, onCancel }: {
   );
 }
 
-function EnterCodeScreen({ identifier, onVerify, onCancel, onResend }: {
+function EnterCodeScreen({
+  identifier,
+  onVerify,
+  onCancel,
+  onResend,
+  emailSignupHint,
+}: {
   identifier: string;
   onVerify: (code: string) => void;
   onCancel: () => void;
   onResend: () => void;
+  /** Shown for email sign-up OTP (Supabase + Resend deliverability). */
+  emailSignupHint?: boolean;
 }) {
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -264,6 +298,13 @@ function EnterCodeScreen({ identifier, onVerify, onCancel, onResend }: {
       <p className="text-[#1E3A5F] font-medium text-sm mb-6">{identifier}</p>
 
       <p className="text-gray-500 text-xs mb-3 text-center">Enter 6 digit OTP</p>
+      {emailSignupHint && (
+        <p className="text-[11px] text-gray-500 text-center mb-3 leading-relaxed px-1">
+          Email is sent by Supabase Auth through your provider (e.g. Resend). Check spam. In Supabase:
+          Authentication → Providers → Email — enable <span className="font-medium">Email OTP</span> (or a
+          template that includes the <span className="font-mono text-[10px]">{'{{ .Token }}'}</span> code).
+        </p>
+      )}
       <OtpInput length={6} value={code} onChange={setCode} error={!!error} />
 
       {error && (
@@ -281,7 +322,7 @@ function EnterCodeScreen({ identifier, onVerify, onCancel, onResend }: {
             countdown > 0 ? 'text-gray-300' : 'text-[#2A6FC8]'
           }`}
         >
-          Resend
+          Resend OTP
         </button>
       </div>
 
@@ -297,16 +338,18 @@ function EnterCodeScreen({ identifier, onVerify, onCancel, onResend }: {
           disabled={loading || code.length !== 6}
           className="flex-1 py-3 bg-[#2A6FC8] text-white rounded-xl font-semibold text-sm hover:bg-[#2458A3] transition-colors disabled:opacity-50"
         >
-          {loading ? 'Verifying...' : 'Verify Code'}
+          {loading ? 'Verifying...' : 'Verify'}
         </button>
       </div>
     </div>
   );
 }
 
-function AuthScreen({ onNavigateToMessages }: { onNavigateToMessages: () => void }) {
+function AuthScreen({ onNavigateAfterAuth }: { onNavigateAfterAuth: () => Promise<void> }) {
+  const router = useRouter();
   const [mode, setMode] = useState<AuthMode>('signup');
   const [method, setMethod] = useState<InputMethod>('email');
+  const [signUpRole, setSignUpRole] = useState<SignUpRole>('worker');
   const [step, setStep] = useState<AuthStep>('form');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -335,6 +378,7 @@ function AuthScreen({ onNavigateToMessages }: { onNavigateToMessages: () => void
 
   const switchMode = (newMode: AuthMode) => {
     setMode(newMode);
+    if (newMode === 'signup') setSignUpRole('worker');
     resetForm();
   };
 
@@ -369,15 +413,13 @@ function AuthScreen({ onNavigateToMessages }: { onNavigateToMessages: () => void
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
 
-      const { error: signUpError } = await signUpClient({
+      const { error: otpSendError } = await requestEmailSignupOtp({
         email,
-        password,
-        first_name: firstName,
-        last_name: lastName,
-        role: 'worker',
-        deferProfileUntilVerified: true,
+        firstName,
+        lastName,
+        signupRole: signUpRole === 'employer' ? 'employer' : 'worker',
       });
-      if (signUpError) throw signUpError;
+      if (otpSendError) throw otpSendError;
 
       setPendingIdentifier(email);
       setStep('otp');
@@ -450,19 +492,44 @@ function AuthScreen({ onNavigateToMessages }: { onNavigateToMessages: () => void
       });
       if (error) throw error;
 
-      if (mode === 'signup' && verifyData?.user && fullName.trim()) {
-        const nameParts = fullName.trim().split(' ');
+      if (mode === 'signup' && verifyData?.user) {
+        const nameParts = fullName.trim().split(/\s+/);
         const firstName = nameParts[0] || '';
         const lastName = nameParts.slice(1).join(' ') || '';
-        await supabase.auth.updateUser({
-          data: { first_name: firstName, last_name: lastName },
-        });
+
+        if (signUpRole === 'employer') {
+          if (password.length >= 6) {
+            const { error: pwErr } = await supabase.auth.updateUser({ password });
+            if (pwErr) console.warn('Set password after phone verify:', pwErr.message);
+          }
+          await supabase.auth.updateUser({
+            data: { first_name: firstName, last_name: lastName },
+          });
+          sessionStorage.setItem(
+            EMPLOYER_ONBOARDING_PREFILL_KEY,
+            JSON.stringify({
+              firstName,
+              lastName,
+              email: '',
+              phone: pendingIdentifier,
+            }),
+          );
+          router.replace('/onboarding');
+          return;
+        }
+
+        if (fullName.trim()) {
+          await supabase.auth.updateUser({
+            data: { first_name: firstName, last_name: lastName },
+          });
+        }
       }
     } else {
       const { data: verifyData, error } = await supabase.auth.verifyOtp({
-        email: pendingIdentifier,
+        email: pendingIdentifier.trim(),
         token: code,
-        type: mode === 'signup' ? 'signup' : 'email',
+        // Email sign-up uses signInWithOtp → verify with type "email" (not "signup" from signUp()).
+        type: 'email',
       });
       if (error) throw error;
 
@@ -474,6 +541,29 @@ function AuthScreen({ onNavigateToMessages }: { onNavigateToMessages: () => void
         if (!userId) {
           throw new Error('Verification succeeded but user account was not found');
         }
+
+        if (password.length >= 6) {
+          const { error: pwErr } = await supabase.auth.updateUser({ password });
+          if (pwErr) throw pwErr;
+        }
+
+        if (signUpRole === 'employer') {
+          const raw =
+            verifyData.user?.email ?? verifyData.user?.new_email ?? pendingIdentifier;
+          const authEmail = (typeof raw === 'string' ? raw : '').trim();
+          sessionStorage.setItem(
+            EMPLOYER_ONBOARDING_PREFILL_KEY,
+            JSON.stringify({
+              firstName,
+              lastName,
+              email: authEmail,
+              phone: '',
+            }),
+          );
+          router.replace('/onboarding');
+          return;
+        }
+
         const { error: profileError } = await completeSignUpProfile({
           userId,
           email: pendingIdentifier.trim(),
@@ -491,9 +581,20 @@ function AuthScreen({ onNavigateToMessages }: { onNavigateToMessages: () => void
     try {
       if (method === 'phone') {
         await supabase.auth.signInWithOtp({ phone: pendingIdentifier });
+      } else if (mode === 'signup') {
+        const nameParts = fullName.trim().split(/\s+/);
+        const fn = nameParts[0] || '';
+        const ln = nameParts.slice(1).join(' ') || '';
+        const { error } = await requestEmailSignupOtp({
+          email: pendingIdentifier,
+          firstName: fn,
+          lastName: ln,
+          signupRole: signUpRole === 'employer' ? 'employer' : 'worker',
+        });
+        if (error) throw error;
       } else {
         await supabase.auth.resend({
-          type: mode === 'signup' ? 'signup' : 'email',
+          type: 'email',
           email: pendingIdentifier,
         });
       }
@@ -502,9 +603,9 @@ function AuthScreen({ onNavigateToMessages }: { onNavigateToMessages: () => void
     }
   };
 
-  const handleSuccess = () => {
+  const handleSuccess = async () => {
     if (mode === 'signin') {
-      onNavigateToMessages();
+      await onNavigateAfterAuth();
     } else {
       switchMode('signin');
     }
@@ -526,6 +627,7 @@ function AuthScreen({ onNavigateToMessages }: { onNavigateToMessages: () => void
         onVerify={handleVerifyOtp}
         onCancel={() => setStep('form')}
         onResend={handleResendOtp}
+        emailSignupHint={mode === 'signup' && method === 'email'}
       />
     );
   }
@@ -552,6 +654,17 @@ function AuthScreen({ onNavigateToMessages }: { onNavigateToMessages: () => void
 
       <div className="px-6 mb-5">
         <MethodTabs method={method} onChange={setMethod} />
+        {mode === 'signup' && (
+          <div className="mt-4">
+            <SignUpRoleTabs role={signUpRole} onChange={setSignUpRole} />
+            {signUpRole === 'employer' && (
+              <p className="text-center text-[11px] text-gray-500 mt-2 leading-relaxed px-1">
+                Email: verification code is sent via Supabase Auth (configure SMTP in the dashboard). Phone: SMS
+                OTP.
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 pb-6">
@@ -893,20 +1006,29 @@ export default function HomePage() {
   const [showAuth, setShowAuth] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then((result: any) => {
-      const session = result?.data?.session;
-      if (session) {
-        router.push('/messages');
-      } else {
-        setCheckingSession(false);
-        const seen = localStorage.getItem('huzly_onboarding_seen');
-        if (seen) {
-          setShowAuth(true);
-        } else {
-          setShowOnboarding(true);
-        }
+    let cancelled = false;
+    (async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (session?.user?.id) {
+        const done = await isOnboardingCompleted(session.user.id);
+        if (cancelled) return;
+        router.replace(done ? '/messages' : '/onboarding');
+        return;
       }
-    });
+      setCheckingSession(false);
+      const seen = localStorage.getItem('huzly_onboarding_seen');
+      if (seen) {
+        setShowAuth(true);
+      } else {
+        setShowOnboarding(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   const handleOnboardingComplete = () => {
@@ -915,9 +1037,18 @@ export default function HomePage() {
     setShowAuth(true);
   };
 
-  const handleNavigateToMessages = () => {
-    router.push('/messages');
-  };
+  const handleNavigateAfterAuth = useCallback(async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const uid = session?.user?.id;
+    if (!uid) {
+      router.replace('/');
+      return;
+    }
+    const done = await isOnboardingCompleted(uid);
+    router.replace(done ? '/messages' : '/onboarding');
+  }, [router]);
 
   if (checkingSession) {
     return (
@@ -937,7 +1068,7 @@ export default function HomePage() {
     return (
       <div className="h-screen w-screen overflow-hidden bg-white">
         <div className="h-full w-full max-w-md mx-auto">
-          <AuthScreen onNavigateToMessages={handleNavigateToMessages} />
+          <AuthScreen onNavigateAfterAuth={handleNavigateAfterAuth} />
         </div>
       </div>
     );

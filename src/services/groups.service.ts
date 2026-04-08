@@ -82,8 +82,13 @@ export async function addMembersToGroup(
   return res.json();
 }
 
-export async function fetchUnreadCounts(userId: string): Promise<{ counts: Record<string, number>; total: number }> {
-  const res = await fetch(`/api/unread-counts?userId=${encodeURIComponent(userId)}`);
+export async function fetchUnreadCounts(
+  userId: string,
+  opts?: { fresh?: boolean }
+): Promise<{ counts: Record<string, number>; total: number }> {
+  const q = new URLSearchParams({ userId });
+  if (opts?.fresh) q.set('fresh', '1');
+  const res = await fetch(`/api/unread-counts?${q}`);
   if (!res.ok) return { counts: {}, total: 0 };
   return res.json();
 }

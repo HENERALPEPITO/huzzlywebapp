@@ -26,6 +26,7 @@ import {
   GroupMessage,
 } from '@/services/groups.service';
 import { useMessageNotifications } from '@/context/MessageNotificationsContext';
+import { isOnboardingCompleted } from '@/lib/onboardingService';
 
 interface Attachment {
   url: string;
@@ -157,7 +158,7 @@ export default function MessagesPage() {
   useEffect(() => {
     if (!currentUserId) return;
     const onRefresh = () => {
-      void fetchUnreadCounts(currentUserId)
+      void fetchUnreadCounts(currentUserId, { fresh: true })
         .then(({ counts, total }) => {
           setUnreadCounts(counts);
           setTotalUnread(total);
@@ -180,9 +181,14 @@ export default function MessagesPage() {
           return;
         }
         const { data: { user } } = await supabase.auth.getUser();
-        if (isMounted && user) {
-          setCurrentUserId(user.id);
+        if (!user) return;
+        const onboardingDone = await isOnboardingCompleted(user.id);
+        if (!isMounted) return;
+        if (!onboardingDone) {
+          router.replace('/onboarding');
+          return;
         }
+        setCurrentUserId(user.id);
       } catch (error) {
         console.error('[MessagesPage] Auth check error:', error);
       } finally {
@@ -261,7 +267,7 @@ export default function MessagesPage() {
           }));
           setMessages(mapped);
           await markMessagesAsRead(currentUserId, selectedContact.user_id, selectedShiftId || undefined);
-          const { counts, total } = await fetchUnreadCounts(currentUserId);
+          const { counts, total } = await fetchUnreadCounts(currentUserId, { fresh: true });
           setUnreadCounts(counts);
           setTotalUnread(total);
         } catch (error) {

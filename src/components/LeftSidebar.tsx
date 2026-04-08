@@ -1,7 +1,18 @@
 'use client';
 
-import { Search, LayoutGrid, Settings, Calendar, ClipboardList, Bell, LogOut, MessageSquare } from 'lucide-react';
+import {
+  Search,
+  LayoutGrid,
+  Settings,
+  Calendar,
+  ClipboardList,
+  Bell,
+  LogOut,
+  MessageSquare,
+  Sparkles,
+} from 'lucide-react';
 import { useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { useMessageNotifications } from '@/context/MessageNotificationsContext';
 
 interface LeftSidebarProps {
@@ -11,20 +22,23 @@ interface LeftSidebarProps {
 const navItems = [
   { icon: LayoutGrid, label: 'Dashboard' },
   { icon: Settings, label: 'Settings' },
-  { icon: Calendar, label: 'Calendar' },
+  { icon: Calendar, label: 'Calendar', href: '/schedule' as const },
   { icon: ClipboardList, label: 'Tasks' },
   { icon: Bell, label: 'Notifications' },
 ];
 
 const mobileNavItems = [
   { icon: LayoutGrid, label: 'Dashboard' },
-  { icon: MessageSquare, label: 'Messages' },
-  { icon: Calendar, label: 'Calendar' },
+  { icon: Sparkles, label: 'Onboarding', href: '/onboarding' as const },
+  { icon: MessageSquare, label: 'Messages', href: '/messages' as const },
+  { icon: Calendar, label: 'Calendar', href: '/schedule' as const },
   { icon: Bell, label: 'Notifications' },
   { icon: Settings, label: 'Settings' },
 ];
 
 export default function LeftSidebar({ onLogout }: LeftSidebarProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const { openNotificationSettings } = useMessageNotifications();
 
@@ -53,14 +67,32 @@ export default function LeftSidebar({ onLogout }: LeftSidebarProps) {
           <Search className="w-[18px] h-[18px]" />
         </button>
 
+        <button
+          type="button"
+          onClick={() => router.push('/onboarding')}
+          className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors mb-2 ${
+            pathname === '/onboarding'
+              ? 'bg-white/15 text-white'
+              : 'text-white/50 hover:text-white/80 hover:bg-white/8'
+          }`}
+          title="Onboarding"
+        >
+          <Sparkles className="w-[18px] h-[18px]" />
+        </button>
+
         <nav className="flex-1 flex flex-col items-center gap-2">
           {navItems.map((item, i) => {
             const Icon = item.icon;
-            const isActive = activeIndex === i;
+            const href = 'href' in item ? item.href : undefined;
+            const isActive = href ? pathname === href : activeIndex === i;
             return (
               <button
                 key={i}
                 onClick={() => {
+                  if (href) {
+                    router.push(href);
+                    return;
+                  }
                   if (item.label === 'Settings' || item.label === 'Notifications') {
                     openNotifSettings(i);
                   } else {
@@ -99,22 +131,31 @@ export default function LeftSidebar({ onLogout }: LeftSidebarProps) {
       >
         {mobileNavItems.map((item, i) => {
           const Icon = item.icon;
-          const isActive = i === 1;
+          const href = 'href' in item ? item.href : undefined;
+          const isActive =
+            (href && pathname === href) ||
+            (!href && item.label === 'Messages' && pathname === '/messages');
           return (
             <button
               key={i}
               type="button"
               onClick={() => {
+                if (href) {
+                  router.push(href);
+                  return;
+                }
                 if (item.label === 'Notifications' || item.label === 'Settings') {
                   openNotifSettings(i);
                 }
               }}
-              className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-lg transition-colors ${
+              className={`flex flex-col items-center gap-1 px-2 py-1.5 rounded-lg transition-colors min-w-0 flex-1 ${
                 isActive ? 'text-white' : 'text-white/50'
               }`}
             >
-              <Icon className="w-5 h-5" />
-              <span className="text-[10px] font-medium">{item.label}</span>
+              <Icon className="w-5 h-5 shrink-0" />
+              <span className="text-[9px] font-medium text-center leading-tight truncate w-full">
+                {item.label}
+              </span>
             </button>
           );
         })}
